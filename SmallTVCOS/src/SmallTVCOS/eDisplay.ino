@@ -16,6 +16,15 @@ Adafruit_GFX *display;
 
 boolean _displaySetup=false; // display setup ok
 
+byte _effectType=0;
+byte fontSize=2;
+
+int col_red;
+int col_white;
+int col_black;
+int col_green;
+int col_blue;
+
 int pixelX=240;
 int pixelY=240;
 
@@ -110,6 +119,8 @@ uint16_t toColor565(uint8_t r, uint8_t g, uint8_t b) {
            (b >> 3);            // Top 5 bits of blue
 }
 
+
+
 //---------------------------------------------------------------------------
 
 void displaySetup() {
@@ -130,6 +141,12 @@ void displaySetup() {
       logPrintln(LOG_INFO,"displayBuffer enabled");
     }
   }else { display=&tft; }
+
+  col_red=toColor444(15,0,0);
+  col_white=toColor444(15,15,15);
+  col_black=toColor444(0,0,0);  
+  col_green=toColor444(0,15,0);  
+  col_blue=toColor444(0,0,15);    
 
   _displaySetup=true;
 }

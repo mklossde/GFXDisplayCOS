@@ -62,11 +62,11 @@ void matrixWebSetup(AsyncWebServerRequest *request) {
 void matrixWeb(AsyncWebServerRequest *request) {
   String message;
   if (request->hasParam("drawClear")) {  drawClose();
-  }else if (request->hasParam("pageTitle")) {  *matrixPageTime=0; matrixPage=1;
-  }else if (request->hasParam("pageEsp")) {  *matrixPageTime=0; matrixPage=2; 
-  }else if (request->hasParam("pageTest")) {  *matrixPageTime=0; matrixPage=3;
-  }else if (request->hasParam("pageTime")) {  *matrixPageTime=0; matrixPage=4;
-  }else if (request->hasParam("pageImage")) {  *matrixPageTime=0; matrixPage=5;
+  }else if (request->hasParam("page")) { 
+    String nr=webParam(request,"nr"); 
+    pageSet(nr.toInt());
+  }else if (request->hasParam("pageNext")) { pageChange(+1);  
+  }else if (request->hasParam("pagePriv")) { pageChange(-1);  
   }else if (request->hasParam("drawFile")) { 
     String name=webParam(request,"name");  
     char *file=(char*)name.c_str();
@@ -81,7 +81,7 @@ void matrixWeb(AsyncWebServerRequest *request) {
   String html = ""; html = pageHead(html, "MatrixHup");
   File root = FILESYSTEM.open(rootDir);
   File foundfile = root.openNextFile();
-  html+="[<a href=?pageTitle=1>Title</a>][<a href=?pageEsp=1>Esp</a>][<a href=?pageTest=1>Test</a>][<a href=?pageTime=1>Time</a>][<a href=?pageImage=1>Images</a>][<a href=?drawClear=1>OFF</a>]";
+  html+="[<a href=?page=1>&nr=1>Title</a>][<a href=?pageNext=1>NextPage</a>][<a href=?pagePriv=1>PrivPage</a>][<a href=?drawClear=1>OFF</a>]";
   html+="<table><tr>";
   int cols=0;
   while (foundfile) { 
@@ -179,11 +179,11 @@ char* matrixCmd(char *cmd, char **param) {
     else if(strcmp(cmd, "drawText")==0) { drawText(toInt(cmdParam(param)),toInt(cmdParam(param)),toInt(cmdParam(param)),cmdParam(param),toInt(cmdParam(param))); return EMPTY; }
 
     // set page
-    else if(strcmp(cmd, "page")==0) { *matrixPageTime=0; int p=toInt(cmdParam(param)); if(p>=0) { matrixPage=p; } sprintf(buffer,"%d",matrixPage); return buffer; }
+    else if(strcmp(cmd, "page")==0) { int p=pageSet(toInt(cmdParam(param))); sprintf(buffer,"%d",p); return buffer; }
     // next page
-    else if(strcmp(cmd, "pagePriv")==0) { *matrixPageTime=0; matrixPage--; if(matrixPage<1) { matrixPage=6; } return EMPTY; }
+    else if(strcmp(cmd, "pagePriv")==0) { int p=pageChange(1);sprintf(buffer,"%d",p); return buffer; }
     // next page
-    else if(strcmp(cmd, "pageNext")==0) { *matrixPageTime=0; matrixPage++; if(matrixPage>6) { matrixPage=1; } return EMPTY; }
+    else if(strcmp(cmd, "pageNext")==0) {  int p=pageChange(-1);sprintf(buffer,"%d",p); return buffer; }
 
     // drawFile file type x y - draw a gif/icon at x,y
     else if(strcmp(cmd, "drawFile")==0) { char *f=cmdParam(param); drawFile(f,f,toInt(cmdParam(param)),toInt(cmdParam(param)),false); return EMPTY; }    
@@ -200,9 +200,9 @@ char* matrixCmd(char *cmd, char **param) {
     else if(strcmp(cmd, "drawIcon")==0) { drawIcon(toInt(cmdParam(param)),toInt(cmdParam(param)),toInt(cmdParam(param)),toInt(cmdParam(param)),toInt(cmdParam(param)),cmdParam(param)); return EMPTY; }
   
     // drawTime x y c - draw time (format hh:mm:ss) at x,y of color c 
-    else if(strcmp(cmd, "drawTime")==0) { drawTime(toInt(cmdParam(param)),toInt(cmdParam(param)),toInt(cmdParam(param))); return EMPTY; }
+    else if(strcmp(cmd, "drawTime")==0) { drawTime(toInt(cmdParam(param)),toInt(cmdParam(param)),toInt(cmdParam(param)),toInt(cmdParam(param))); return EMPTY; }
     // drawDate x y c - draw date (format dd.mm.yyyy) at x,y of color c
-    else if(strcmp(cmd, "drawDate")==0) { drawDate(toInt(cmdParam(param)),toInt(cmdParam(param)),toInt(cmdParam(param))); return EMPTY; }
+    else if(strcmp(cmd, "drawDate")==0) { drawDate(toInt(cmdParam(param)),toInt(cmdParam(param)),toInt(cmdParam(param)),toInt(cmdParam(param))); return EMPTY; }
 
     // effect type step speed a b - start effect type with n-steps with speed in ms between steps
     else if(equals(cmd, "effect")) { effectStart(toInt(cmdParam(param)),toInt(cmdParam(param)),toInt(cmdParam(param)),toInt(cmdParam(param)),toInt(cmdParam(param))); return EMPTY;  } // start effect 

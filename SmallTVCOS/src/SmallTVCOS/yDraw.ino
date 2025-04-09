@@ -18,7 +18,7 @@ void draw() {
 void drawClear() {   
   if(!_displaySetup) { return ; }
   if(eeDisplay.displayBuffer) { bufferClear(); } else { displayClear(); }
-  matrixPage=0;
+  pageSet(0);
 } 
 
 //------------------------------------------------------------------------------
@@ -273,14 +273,14 @@ void valueGauge(int x,int y,char *text,int value,int max,int col1,int col2) {
 
 /* draw net-time at x,y with color */
 //TODO do not work
-void drawTime(int x,int y,int color) {  
-  drawText(x,y,1,getTime(),color);
+void drawTime(int x,int y,int size,int color) {  
+  drawText(x,y,size,getTime(),color);
 }
 
 /* draw net-date at x,y with color */
 //TODO do not work
-void drawDate(int x,int y,int color) {  
-  drawText(x,y,1,getDate(),color);
+void drawDate(int x,int y,int size,int color) {  
+  drawText(x,y,size,getDate(),color);
 }
 
 

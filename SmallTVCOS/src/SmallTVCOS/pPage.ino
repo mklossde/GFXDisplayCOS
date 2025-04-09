@@ -2,19 +2,42 @@
 byte matrixPage=0; // 0=off,1=title
 unsigned long *matrixPageTime = new unsigned long(0);
 
-byte _effectType=0;
-
-int col_red;
-int col_white;
-int col_black;
-int col_green;
-int col_blue;
+//--------------------------------
 
 /* clear from page */
 void pageClear() {
   if(eeDisplay.displayBuffer) {  bufferClear(); } else { displayClear(); }
   _effectType=0; // effect off
 }
+
+/* enabel a page to display */
+byte pageSet(byte page) {
+  if(page>=0) { 
+    matrixPage=page;
+    *matrixPageTime=0;
+  } 
+  return matrixPage;
+}
+
+/* enabel a page to display */
+byte pageChange(int pageAdd) {
+  matrixPage+=pageAdd;
+  if(matrixPage<1) { matrixPage=6; }
+  if(matrixPage>6) { matrixPage=1; } 
+  return matrixPage;
+}
+
+int pageCmdNr=0;
+
+void pageCmd() {
+  pageClear();  
+  int max=fsDirSize(".cmd");
+  pageCmdNr++; if(pageCmdNr>=max) { pageCmdNr=0; }
+  char* name=fsFile(".cmd",pageCmdNr,0);
+  cmdFile(name);
+}
+
+//--------------------------------
 
 void pageTitle() {
   pageClear();
@@ -24,8 +47,8 @@ void pageTitle() {
   // WIFI  
   long val=0; if(WiFi.RSSI()!=0) { val=(100+WiFi.RSSI())/2; }
 
-  uint16_t w=30,h=30;
-  int x=wh,y=50;
+  uint16_t w=50,h=50;
+  int x=wh,y=150;
   drawArc(x, y, 3, 90, 60, w, h, 3, col_red);
   drawArc(x, y, 3, 90, 60, w-10, h-10, 3, col_red);
   drawArc(x, y, 3, 90, 60, w-20, h-20, 3, col_red);  
@@ -35,25 +58,25 @@ void pageTitle() {
 
   fillTriangle(x, y, x-w, y-h, x-w, y, col_black);
   fillTriangle(x, y, x+w, y-h, x+w, y, col_black);
-  fillCircle(x, y+10, 3, col_red);
+  fillCircle(x, y+10, 3, col_green);
 
   // title
   int16_t  x1, y1; 
   display->getTextBounds(prgTitle, 0, 0, &x1, &y1, &w, &h);
   x=wh-w/2, y=1;
-  drawText(x,y,1,prgTitle,col_red);   
+  drawText(x,y,fontSize,prgTitle,col_red);   
   // version
-  drawText(1,pixelY-8,1,prgVersion,col_red);   
+  drawText(1,pixelY-(8*fontSize),fontSize,prgVersion,col_red);   
   // FreeHeap
-  drawFull(pixelX-5,25,8,20,2,(int)ESP.getFreeHeap(),150000,col_red,col_white);
+  drawFull(pixelX-30,100,20,100,2,(int)ESP.getFreeHeap(),150000,col_red,col_white);
 
   if(eeMode!=EE_MODE_OK) {
-    fillRect(pixelX-13,pixelY-9,pixelX,pixelY,col_red);
-    sprintf(buffer, "%d", eeMode); drawText(pixelX-12,pixelY-8,1,buffer,col_black);  
+    fillRect(pixelX-(8*fontSize)-5,pixelY-(8*fontSize)-1,pixelX,pixelY,col_red);
+    sprintf(buffer, "%d", eeMode); drawText(pixelX-12,pixelY-8,fontSize,buffer,col_black);  
   }
 
   if(is(appIP)) {  
-    drawText(1,10,1,(char*)appIP.c_str(),col_red);   
+    drawText(1,(8*fontSize)+20,fontSize,(char*)appIP.c_str(),col_red);   
   }
 
   draw();
@@ -95,18 +118,18 @@ void pageEsp() {
 
   uint32_t chipid=espChipId(); // or use WiFi.macAddress() ?
   snprintf(buffer,20, "%08X",chipid);
-  drawText(15,1,1,buffer,col_white);
+  drawText(15,1,fontSize,buffer,col_white);
   // Heap
-  drawText(1,10,1,"Heap",col_red);
+  drawText(1,10,fontSize,"Heap",col_red);
   drawFull(40,10,20,8,2,(int)ESP.getFreeHeap(),150000,col_red,col_white);
   sprintf(buffer,"%d",ESP.getFreeHeap()); 
 //  drawText(45,10,col_red,1,buffer);
 // sketch
-  drawText(1,20,1,"Sketch",col_red);
+  drawText(1,20,fontSize,"Sketch",col_red);
   drawFull(40,20,20,8,2,(int)ESP.getSketchSize(),(int)ESP.getFreeSketchSpace(),col_red,col_white);
   // bootType
-  drawText(1,30,1,"CmdOs",col_red);
-  drawText(40,30,1,bootType,col_white);
+  drawText(1,30,fontSize,"CmdOs",col_red);
+  drawText(40,30,fontSize,bootType,col_white);
 //  // mac
 //  uint8_t baseMac[6]; esp_read_mac(baseMac, ESP_MAC_WIFI_STA);
 //  sprintf(buffer,"%02x:%02x:%02x:%02x:%02x:%02x\n",baseMac[0], baseMac[1], baseMac[2],baseMac[3], baseMac[4], baseMac[5]);
@@ -129,8 +152,8 @@ void pageEsp() {
 
 void pageTime() {
   pageClear();
-  drawTime(10,5,col_red);
-  drawDate(2,20,col_red);
+  drawTime(10,5,fontSize,col_red);
+  drawDate(2,20,fontSize,col_red);
   drawLine(5,15,60,15,col_white);
   draw();
   delay(250);
@@ -154,36 +177,23 @@ void pageGif() {
   delay(1300);
 }
 
-int pageCmdNr=0;
-
-void pageCmd() {
-  pageClear();  
-  int max=fsDirSize(".cmd");
-  pageCmdNr++; if(pageCmdNr>=max) { pageCmdNr=0; }
-  char* name=fsFile(".cmd",pageCmdNr,0);
-  cmdFile(name);
-}
-
 //-----------------------------------------------------------
 
+int pageRefresh=10000;
+
 void pageSetup() {
-  col_red=toColor444(15,0,0);
-  col_white=toColor444(15,15,15);
-  col_black=toColor444(0,0,0);  
-  col_green=toColor444(0,15,0);  
-  col_blue=toColor444(0,0,15);    
+  pageStart();  
+  pageTitle(); matrixPage=1;    
 }
 
 void pageLoop() {
   if(!displayEnable && !_displaySetup) { return ; }
-  if(matrixPage>0) {
-    if(isTimer(matrixPageTime, 1000)) { 
-      if(matrixPage==1) { pageTitle(); } // draw title again 
-      else if(matrixPage==2) { pageEsp(); } 
-      else if(matrixPage==3) { pageStart(); } 
-      else if(matrixPage==4) { pageTime(); } 
-      else if(matrixPage==5) { pageGif(); } 
-      else if(matrixPage==6) { pageCmd(); } 
-    }
+  if(matrixPage>0 && isTimer(matrixPageTime, pageRefresh)) { 
+    if(matrixPage==1) { pageTitle(); } // draw title again 
+    else if(matrixPage==2) { pageEsp(); } 
+    else if(matrixPage==3) { pageStart(); } 
+    else if(matrixPage==4) { pageTime(); } 
+    else if(matrixPage==5) { pageGif(); } 
+    else if(matrixPage==6) { pageCmd(); } 
   }  
 }
