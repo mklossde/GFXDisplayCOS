@@ -89,6 +89,7 @@ void setup() {
   if(isModeNoError()) { 
     displaySetup();
     pageSetup();
+    displayPageSetup();
     swCmd(1,"pageNext");
     swCmd(2,"pagePriv");
   }
@@ -100,6 +101,7 @@ void loop() {
     displayLoop();
     drawLoop();
     pageLoop();
+    displayPageLoop();
     effectLoop();    
   }
 }
