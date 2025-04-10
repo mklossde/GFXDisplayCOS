@@ -1,14 +1,19 @@
 # SmallTVCOS Flash
 
-ESP32-D0WD-V3 chip (ESP32-WROOM-32)
-LED: Onboard blue LED on GPIO2 (inverted)
-Disaplay:  Tft Display st7789 1,54“ 240x240 Spi 
-Button: Touch button on gpio32
+A build version is at <a href="../bin">bin</A>
+
+## Flash firmware update
+
+- Connect SmallTV to power, access via AP and setup the local wlan.
+- Access via IP from  browser and update firmware to SmallTVCOS.
+- (Update will take some time)
+
+Use "SmallTVCOS.ino.bin" for this update.
+
 
 ## Flash via Serial 
 
 PINS:
-
 1 GND [] 
 2 TX (35) 
 3 RX (34)
@@ -16,18 +21,7 @@ PINS:
 5 GPIO0 (25) - low an reset for flash
 6 RST (3) 
 
-## Display
-
-|1| GND
-|2| GP0 → D/C
-|3| GND → CS ? tied to GND
-|4| GP14 → SCK
-|5| GP13 → MOSI
-|6| GP2 - > reset ?
-|7| VCC
-|8| GND
-|9| GP5 → Back-light Anode through P MOSFet
-|10| GND → Back-light Cathode
+Flash via USB2Serial with file "SmallTVCOS.ino.merged.bin"
 
 
 ## Other Firmware
