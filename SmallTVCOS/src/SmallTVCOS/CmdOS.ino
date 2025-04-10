@@ -2621,7 +2621,7 @@ void webFileManager(AsyncWebServerRequest *request) {
       Update.printError(Serial);
   #ifdef ESP8266
     } else {
-      sprintf(buffer, "Progress: %d%%\n", (Update.progress() * 100) / Update.size()); logPrintln(LOG_SYSTEM,buffer);
+      sprintf(buffer, "Progress: %d%%", (Update.progress() * 100) / Update.size()); logPrintln(LOG_SYSTEM,buffer);
   #endif
     }
 

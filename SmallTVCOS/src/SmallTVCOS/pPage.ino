@@ -238,7 +238,7 @@ void pageGifLoop() {
     if(!is(name)) { sprintf(buffer,"pageGif missing %d/%d",f,max);logPrintln(LOG_ERROR,buffer); return ; }
 
     sprintf(paramBuffer,"%s",name);
-    sprintf(buffer,"pageGif %d/%d %s",f,max,to(paramBuffer));logPrintln(LOG_INFO,buffer);
+    sprintf(buffer,"pageGif %d/%d %s",f,max,to(paramBuffer));logPrintln(LOG_DEBUG,buffer);
 
     int px=random(0,pixelX-64),py=random(0,pixelY-64);
     drawFile(paramBuffer,paramBuffer,px,py,false);

@@ -162,7 +162,7 @@ void drawFile(char *name,char *suffix,int x,int y,boolean direct) {
 
     if(!startWith(name,"/")) { sprintf(buffer,"/%s",name); name=buffer; }
     if (gif.open(name, GIFOpenFile, GIFCloseFile, GIFReadFile, GIFSeekFile, GIFDraw)) {
-      sprintf(buffer,"GIF draw %s; (%d x %d)", name, gif.getCanvasWidth(), gif.getCanvasHeight());logPrintln(LOG_INFO,buffer);
+      sprintf(buffer,"GIF draw %s; (%d x %d)", name, gif.getCanvasWidth(), gif.getCanvasHeight());logPrintln(LOG_DEBUG,buffer);
       _playStart=true;
       _playGif=false; 
       frames=0;   
@@ -232,6 +232,7 @@ void drawClose() {
 
 /* stop and clear matrix */
 void drawOff() {
+  pageSet(0);
   drawClose();
 }
 
