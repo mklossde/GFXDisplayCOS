@@ -91,7 +91,7 @@ static String EMPTYSTRING="";
 int minValueLen=11;
 
 /* list of object and map of key=value */
-class List {
+class MapList {
 private:
   int _index=0; int _max=0;
   void** _array=NULL; // contains values 
@@ -198,14 +198,14 @@ public:
 
   /* size of list e.g. int size=list.size(); */
   int size() { return _index; }
-  List(int max) {  grow(max); }
-  List() {   }
-  List(boolean isMap) {  _isMap=isMap;  } // enable as map
-  ~List() { delete _array; if(_isMap) { delete _key; } }
+  MapList(int max) {  grow(max); }
+  MapList() {   }
+  MapList(boolean isMap) {  _isMap=isMap;  } // enable as map
+  ~MapList() { delete _array; if(_isMap) { delete _key; } }
 
 };
 
-List attrMap(true); 
+MapList attrMap(true); 
 
 //-----------------------------------------------------------------------------
 
@@ -514,7 +514,7 @@ char* timeInfo() {
 //  e.g. EventTimer *myTimer=new EventTimer(10000,2000,&info); myTimer->start();  // after 10s excute info() and repeat every 2s
 //
 
-List eventList;
+MapList eventList;
 
 class MyEventTimer {
   private:
@@ -931,7 +931,6 @@ void fsSetup() {
   void fsSetup() {}
   void fsFormat() {}
 #endif
-
 //-------------------------------------------------------------------------------------------------------------------
 // LED
 
@@ -1106,7 +1105,7 @@ private:
   unsigned long swLastTime = 0;  // last change
   byte swTickCount = 0;
   //ButtonEvent _onPress=NULL;
-  List cmdList;  // 0=onDown,1..9=on n click,10=on Long
+  MapList cmdList;  // 0=onDown,1..9=on n click,10=on Long
 
 public:
 
@@ -2375,7 +2374,6 @@ void mqttLoop() {
   void mqttAttr(char *topic,boolean on) {}
 #endif
 
-
 #include <Arduino.h>
 #ifdef ESP32
   #include <AsyncTCP.h>
@@ -2927,7 +2925,6 @@ void webStart(boolean on) {
   webEnable = on;
   webSetup();
 }
-
 
 // Serial Command Line
 
@@ -3574,7 +3571,6 @@ void cmdLoop() {
 }
 
 
-
 void cmdOSSetup() {
   if(serialEnable) { 
     delay(1); Serial.begin(115200); 
@@ -3618,6 +3614,7 @@ void cmdOSLoop() {
   }
   delay(0);
 }
+
 
 
 

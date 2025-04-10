@@ -1,6 +1,32 @@
 
-byte matrixPage=0; // 0=off,1=title
-unsigned long *matrixPageTime = new unsigned long(0);
+class PageFunc { 
+private: 
+  void (*pageSetup)();
+  void (*pageLoop)();
+  const char *pageName;
+
+public:
+  void doSetup() {  if(pageSetup!=NULL) { pageSetup(); } }
+  void doLoop() {  if(pageLoop!=NULL) { pageLoop(); } }
+  char* toString() { return (char*)pageName; }
+
+  PageFunc() { pageSetup = NULL; pageLoop = NULL;  pageName=NULL; }
+  PageFunc(const char *name,void (*pSetup)(),void (*pLoop)()) {
+    pageName=name; pageSetup=pSetup; pageLoop=pLoop;
+  }
+
+}; 
+
+PageFunc* pageFunc=NULL;  // actual page
+MapList pages;   // list of pages
+
+byte pageIndex=0; // actual page 0=off,1=title
+unsigned long *pageRefreshTime = new unsigned long(0); // timer to refresh page
+
+unsigned long *pageLoopTime = new unsigned long(0); // pageLoop timer 
+int pageLoopValue=0;
+
+int pageRefresh=60000; // full refresh page (pageSetup) / -1 == no refresh
 
 //--------------------------------
 
@@ -11,30 +37,41 @@ void pageClear() {
 }
 
 /* enabel a page to display */
-byte pageSet(byte page) {
+byte pageSet(int page) {
   if(page>=0) { 
-    matrixPage=page;
-    *matrixPageTime=0;
+    pageIndex=page;
+    *pageRefreshTime=0;
+    if(pageIndex==0) { pageFunc=NULL; } else { pageFunc=(PageFunc*)pages.get(pageIndex-1); }
+    sprintf(buffer,"set page:%d pageRefreshTime:%d ",pageIndex,*pageRefreshTime);logPrintln(LOG_DEBUG,buffer);
   } 
-  return matrixPage;
+  return pageIndex;
 }
 
 /* enabel a page to display */
 byte pageChange(int pageAdd) {
-  matrixPage+=pageAdd;
-  if(matrixPage<1) { matrixPage=6; }
-  if(matrixPage>6) { matrixPage=1; } 
-  return matrixPage;
+  byte page=pageIndex+pageAdd;
+  if(page<1) { page=pages.size(); }
+  if(page>pages.size()) { page=1; } 
+  return pageSet(page);
 }
 
 int pageCmdNr=0;
 
-void pageCmd() {
-  pageClear();  
-  int max=fsDirSize(".cmd");
-  pageCmdNr++; if(pageCmdNr>=max) { pageCmdNr=0; }
-  char* name=fsFile(".cmd",pageCmdNr,0);
-  cmdFile(name);
+
+char* pageList() {
+  sprintf(buffer,"");
+  for(int i=0;i<pages.size();i++) {  
+    pageFunc=(PageFunc*)pages.get(i);
+    if(pageFunc!=NULL) {
+      sprintf(buffer+strlen(buffer),"page %i %s\n",i,pageFunc->toString());
+    }
+  }
+  return buffer;
+}
+
+char* pageDel(int pageIndex) {
+  pages.del(pageIndex);
+  return EMPTY;
 }
 
 //--------------------------------
@@ -95,22 +132,31 @@ void pageStart() {
   }
 }
 
+//-------------------------------------------------------------------------
+// PAGE ESP
 
-/*
 void pageTest() {
   pageClear();
-  int wh=pixelX/2, y=pixelY/2, hp=pixelY/pixelX;
-  for (int x=wh; x >=0; x--){ 
-    int w=pixelX-(x*2);
-    int h=pixelY-(y*2);
-//    drawRect(x, y, w, h,col_white); // white rect
-    pageClear();drawLine(x,y,w,h,col_white);
-    y-=hp; 
-    draw();
-    delay(25);
+  pageLoopValue=0;
+}
+
+void pageTestLoop() {
+  int wh=pixelX/2; int d=1000/wh;
+
+  if(isTimer(pageLoopTime, d)) {        
+    if(pageLoopValue<wh) {
+      int wy=pixelY/2, hp=pixelY/pixelX;
+      int ii=pageLoopValue*hp;
+      drawRect(wh-pageLoopValue,wy-ii,(pageLoopValue*2),(ii*2),col_white);
+      draw();
+      pageLoopValue++;
+    }
   }
 }
-*/
+
+
+//-------------------------------------------------------------------------
+// PAGE ESP
 
 /* show esp page */
 void pageEsp() {
@@ -118,82 +164,117 @@ void pageEsp() {
 
   uint32_t chipid=espChipId(); // or use WiFi.macAddress() ?
   snprintf(buffer,20, "%08X",chipid);
-  drawText(15,1,fontSize,buffer,col_white);
+  drawText(100,5,fontSize,buffer,col_white);
   // Heap
-  drawText(1,10,fontSize,"Heap",col_red);
-  drawFull(40,10,20,8,2,(int)ESP.getFreeHeap(),150000,col_red,col_white);
+  drawText(1,20,fontSize,"Heap",col_red);
+  drawFull(100,20,100,10,2,(int)ESP.getFreeHeap(),150000,col_red,col_white);
   sprintf(buffer,"%d",ESP.getFreeHeap()); 
 //  drawText(45,10,col_red,1,buffer);
 // sketch
-  drawText(1,20,fontSize,"Sketch",col_red);
-  drawFull(40,20,20,8,2,(int)ESP.getSketchSize(),(int)ESP.getFreeSketchSpace(),col_red,col_white);
+  drawText(1,40,fontSize,"Sketch",col_red);
+  drawFull(100,40,100,10,2,(int)ESP.getSketchSize(),(int)ESP.getFreeSketchSpace(),col_red,col_white);
   // bootType
-  drawText(1,30,fontSize,"CmdOs",col_red);
-  drawText(40,30,fontSize,bootType,col_white);
+  drawText(1,60,fontSize,"CmdOs",col_red);
+  drawText(100,60,fontSize,bootType,col_white);
 //  // mac
 //  uint8_t baseMac[6]; esp_read_mac(baseMac, ESP_MAC_WIFI_STA);
 //  sprintf(buffer,"%02x:%02x:%02x:%02x:%02x:%02x\n",baseMac[0], baseMac[1], baseMac[2],baseMac[3], baseMac[4], baseMac[5]);
 //  drawText(1,40,col_red,1,"Mac");
 //  drawText(20,40,col_white,1,buffer);
 
+  int px=pixelX/12;
+  int py=pixelY/3, yy=pixelY-py;
   int a[13];
   // bar chart
   for(int i=0;i<12;i++) {
     int v=random(0,21); a[i]=v;
-    drawFull(i*5+1,40,5,21,1,v,21,col_black,col_red);
+    drawFull(i*px+1,yy,px,py,1,v,21,col_black,col_red);
   }
-  drawLine(1,61,60,61,col_red);
+  drawLine(1,pixelY-3,pixelX-1,pixelY-3,col_red);
   // line chart
   for(int i=1;i<12;i++) {    
-    drawLine((i-1)*5+3,40+(a[i-1]),i*5+3,40+(a[i]),col_white);
+    drawLine((i-1)*px+3,yy+(a[i-1]),i*px+3,yy+(a[i]),col_white);
   }    
+  draw();
+}
+
+//-------------------------------------------------------------------------
+// PAGE TIME
+
+void pageTimeDraw() {
+  fillRect(0,50,240,20,col_black);
+  drawTime(50,50,3,col_red);
+  drawDate(20,140,3,col_red);
+  fillRect(0,120,240,20,col_black);
+  drawLine(20,100,200,100,col_white);
   draw();
 }
 
 void pageTime() {
   pageClear();
-  drawTime(10,5,fontSize,col_red);
-  drawDate(2,20,fontSize,col_red);
-  drawLine(5,15,60,15,col_white);
-  draw();
-  delay(250);
-  effectStart(1,64,20,0,-5);
+  pageTimeDraw();
 }  
+
+void pageTimeLoop() {
+  if(isTimer(pageLoopTime, 500)) { 
+    pageLoopValue++; if(pageLoopValue>1) { pageLoopValue=0; }
+    if(pageLoopValue==1) { drawLine(20,100,200,100,col_red); }
+    else { pageTimeDraw();  }
+  }
+}
+
+//-------------------------------------------------------------------------
+// PAGE GIF
 
 void pageGif() {
   pageClear();
-  int max=fsDirSize(".gif");
-  int f=random(0,max);
-  char* name=fsFile(".gif",f,0);  
-  if(!is(name)) { sprintf(buffer,"pageGif missing %d/%d",f,max);logPrintln(LOG_ERROR,buffer); return ; }
-  sprintf(paramBuffer,"%s",name);
-  sprintf(buffer,"pageGif %d/%d %s",f,max,to(paramBuffer));logPrintln(LOG_INFO,buffer);
-  drawFile(paramBuffer,paramBuffer,0,0,false);
-  delay(250);
-  drawFileClose();
-  int rx=random(-1,2)*5;
-  int ry=random(-1,2)*5;
-  effectStart(1,64,20,rx,ry);
-  delay(1300);
+}
+
+void pageGifLoop() {
+  if(isTimer(pageLoopTime, 1000)) { 
+    int max=fsDirSize(".gif");
+    int f=random(0,max);
+    char* name=fsFile(".gif",f,0);  
+    if(!is(name)) { sprintf(buffer,"pageGif missing %d/%d",f,max);logPrintln(LOG_ERROR,buffer); return ; }
+
+    sprintf(paramBuffer,"%s",name);
+    sprintf(buffer,"pageGif %d/%d %s",f,max,to(paramBuffer));logPrintln(LOG_INFO,buffer);
+
+    int px=random(0,pixelX-64),py=random(0,pixelY-64);
+    drawFile(paramBuffer,paramBuffer,px,py,false);
+//    delay(250);
+//    drawFileClose();
+//    int rx=random(-1,2)*5;
+//    int ry=random(-1,2)*5;
+//    effectStart(1,64,20,rx,ry);
+  }
 }
 
 //-----------------------------------------------------------
 
-int pageRefresh=10000;
-
 void pageSetup() {
+  pages.add(new PageFunc("title",pageTitle,NULL));
+  pages.add(new PageFunc("esp",pageEsp,NULL));
+//  pages.add(new PageFunc("test"",pageTest,pageTestLoop));
+  pages.add(new PageFunc("time",pageTime,pageTimeLoop));
+  pages.add(new PageFunc("gif",pageGif,pageGifLoop));
+//  pages.add(new PageFunc(page_cmd,pageCmd,NULL));
+
   pageStart();  
-  pageTitle(); matrixPage=1;    
+  pageSet(1); 
 }
 
 void pageLoop() {
   if(!displayEnable && !_displaySetup) { return ; }
-  if(matrixPage>0 && isTimer(matrixPageTime, pageRefresh)) { 
-    if(matrixPage==1) { pageTitle(); } // draw title again 
-    else if(matrixPage==2) { pageEsp(); } 
-    else if(matrixPage==3) { pageStart(); } 
-    else if(matrixPage==4) { pageTime(); } 
-    else if(matrixPage==5) { pageGif(); } 
-    else if(matrixPage==6) { pageCmd(); } 
-  }  
+  if(pageIndex>0 && isTimer(pageRefreshTime, pageRefresh)) {
+
+    if(pageFunc!=NULL) { 
+      sprintf(buffer,"page setup %d",pageIndex);logPrintln(LOG_DEBUG,buffer);    
+      pageFunc->doSetup(); 
+    }else {
+      sprintf(buffer,"no page found %d",pageIndex);logPrintln(LOG_ERROR,buffer);   
+    }  
+  } else {
+    if(pageFunc!=NULL) { pageFunc->doLoop(); }
+  }
 }

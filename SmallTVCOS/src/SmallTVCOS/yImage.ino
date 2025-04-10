@@ -153,7 +153,7 @@ void drawFile(char *name,char *suffix,int x,int y,boolean direct) {
     return ;
 
   }else if(endsWith(suffix,".gif")) {
-    drawClear();
+//    drawClear();
     _playGif=false;
 
     x_offset=x; y_offset=y;
@@ -218,7 +218,7 @@ void drawFileClose() {
 
 /* stop all prg /drawings */
 void drawStop() {
-  pageSet(0);
+//  pageSet(0);
   drawFileClose();
   prgStop();
 }
