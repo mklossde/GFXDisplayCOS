@@ -2,7 +2,7 @@
 
 develop by mk@almi.de used <a href="https://github.com/mklossde/CmdOs">CmdOS</A>
 
-![CmdOS LOGO](images/GFXDisplayCOS.gif)
+![CmdOS LOGO](images/SmallTVCOS.jpg)
 
 Implementations:
 - ![HUB75](images/Hub75.gif) <a href="https://github.com/mklossde/MatrixCOS">Hub75 Display</A>
