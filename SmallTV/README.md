@@ -1,9 +1,11 @@
 # SmallTVCOS V0.1.0 a OpenOn.org project
 develop by mk@almi.de based on <a href="https://github.com/mklossde/CmdOs">CmdOS</A>
 
-![CmdOS LOGO](images/STV_Title.gif)
+![Small Desktop Weather Clock](images/STV_Title.gif) ![HelloCubic Lite](images/HelloCubicLite.gif)
 
-GFXDisplayCOS implementation for the SmallTV / GeekMagic smalltv / Small Desktop Weather Clock
+GFXDisplayCOS implementation for the 
+- SmallTV / GeekMagic smalltv / Small Desktop Weather Clock
+- the GeekMagic HelloCubic-Lite
 
 !! NOT ALL FUNCTION WORKS YET WITH THIS VERSION !!
 
