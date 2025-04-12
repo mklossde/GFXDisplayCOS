@@ -192,10 +192,8 @@ public:
   void del(int index) {   
     if(index<0 || index>=_index) {return ; }      
     void *obj=_array[index]; if(obj!=NULL) { delete obj; } 
-    if(_isMap) { void *oldKey=_key[index]; if(oldKey!=NULL) { delete oldKey; } }      
-//sprintf(buffer,"del %d",index); logPrintln(LOG_DEBUG,buffer);  
-//    for(int i=_index-2;i>=index;i--) { 
-    for(int i=index;i<_index-1;i++) { 
+    if(_isMap) { void *oldKey=_key[index]; if(oldKey!=NULL) { delete oldKey; } }        
+    for(int i=_index-2;i>=index;i--) { 
       _array[i]=_array[i+1]; 
       if(_isMap) { _key[i]=_key[i+1]; }
       _vsize[i]=_vsize[i+1];
@@ -971,6 +969,7 @@ void fsSetup() {
   void fsSetup() {}
   void fsFormat() {}
 #endif
+
 
 //-------------------------------------------------------------------------------------------------------------------
 // LED
@@ -3125,8 +3124,6 @@ char* cmdExec(char *cmd, char **param) {
   else if(equals(cmd, "?")) { ret=cmdInfo(); }
   else if(equals(cmd, "esp")) { ret=espInfo();  }// show esp status
   else if(equals(cmd, "stat")) { ret=appInfo(); }// show esp status
-
-  else if(equals(cmd, "freeHeap")) { sprintf(buffer,"%d",ESP.getFreeHeap());ret=buffer; }// show free heap
   
   else if(equals(cmd, "login")) { cmdLogin(cmdParam(param)); }
   else if(equals(cmd, "restart")) { espRestart("cmd restart");  }// restart
@@ -3465,7 +3462,20 @@ char* attrInfo() {
 }
 void attrClear(char *prefix) { attrMap.clear(prefix); }
 
+/** get sys attribute */
+char* sysAttr(char *name) {
+  int d=0; char* s;
+  if(!is(name)) { return EMPTY; }
+  else if(equals(name,"timestamp")) { d=_timeMs;  }
+  else if(equals(name,"time")) { s=getTime();  }
+  else if(equals(name,"date")) { s=getDate(); }
+  else if(equals(name,"ip")) { s=(char*)appIP.c_str(); }
+  else if(equals(name, "freeHeap")) { d=ESP.getFreeHeap(); }// show free heap
+  else { return EMPTY; }
 
+  if(is(s)) { sprintf(paramBuffer,"%s",s); } else { sprintf(paramBuffer,"%d",d); }
+  return paramBuffer;   
+}
 
 //--------------------------------
 
@@ -3538,6 +3548,10 @@ char* cmdParam(char **pp) {
       (*pp)++; // skip first $
       p1 = strtok_r(NULL, " ",pp); 
       p1=attrGet(p1);
+    }else if(**pp=='~') { // sysAttribute
+      (*pp)++; // skip first $
+      p1 = strtok_r(NULL, " ",pp); 
+      p1=sysAttr(p1);
     }else if(pIsNumber(*pp) || pIsCalc(*pp)) {
         p1 = strtok_r(NULL, " ",pp);  
     }else { 
