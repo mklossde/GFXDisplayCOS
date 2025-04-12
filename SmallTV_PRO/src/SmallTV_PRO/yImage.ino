@@ -218,7 +218,7 @@ void drawFileClose() {
 
 /* stop all prg /drawings */
 void drawStop() {
-//  pageSet(0);
+//  pageSet(250);
   drawFileClose();
   prgStop();
 }
@@ -232,7 +232,7 @@ void drawClose() {
 
 /* stop and clear matrix */
 void drawOff() {
-  pageSet(0);
+  pageSet(250,-1);
   drawClose();
 }
 

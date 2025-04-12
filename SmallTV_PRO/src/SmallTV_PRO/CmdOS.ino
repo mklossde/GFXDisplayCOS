@@ -192,8 +192,10 @@ public:
   void del(int index) {   
     if(index<0 || index>=_index) {return ; }      
     void *obj=_array[index]; if(obj!=NULL) { delete obj; } 
-    if(_isMap) { void *oldKey=_key[index]; if(oldKey!=NULL) { delete oldKey; } }        
-    for(int i=_index-2;i>=index;i--) { 
+    if(_isMap) { void *oldKey=_key[index]; if(oldKey!=NULL) { delete oldKey; } }      
+//sprintf(buffer,"del %d",index); logPrintln(LOG_DEBUG,buffer);  
+//    for(int i=_index-2;i>=index;i--) { 
+    for(int i=index;i<_index-1;i++) { 
       _array[i]=_array[i+1]; 
       if(_isMap) { _key[i]=_key[i+1]; }
       _vsize[i]=_vsize[i+1];

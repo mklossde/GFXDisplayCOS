@@ -64,7 +64,7 @@ void matrixWeb(AsyncWebServerRequest *request) {
   if (request->hasParam("drawOff")) {  drawOff();
   }else if (request->hasParam("page")) { 
     String nr=webParam(request,"nr"); 
-    pageSet(nr.toInt());
+    pageSet(nr.toInt(),-1);
   }else if (request->hasParam("pageNext")) { pageChange(+1);  
   }else if (request->hasParam("pagePriv")) { pageChange(-1);  
   }else if (request->hasParam("drawFile")) { 
@@ -178,17 +178,18 @@ char* matrixCmd(char *cmd, char **param) {
     // drawText x y c size text - draw text at x y with size 
     else if(equals(cmd, "drawText")) { drawText(toInt(cmdParam(param)),toInt(cmdParam(param)),toInt(cmdParam(param)),cmdParam(param),toInt(cmdParam(param))); return EMPTY; }
 
-    // set page
-    else if(equals(cmd, "page")) { int p=pageSet(toInt(cmdParam(param))); sprintf(buffer,"%d",p); return buffer; }
-    // next page
-    else if(equals(cmd, "pagePriv")) { int p=pageChange(-1);sprintf(buffer,"%d",p); return buffer; }
-    // next page
-    else if(equals(cmd, "pageNext")) {  int p=pageChange(1);sprintf(buffer,"%d",p); return buffer; }
 
-    // set page
-    else if(equals(cmd, "pages")) { return pageList();  }
-//    else if(equals(cmd, "pageAdd")) { return pageAdd(cmdParam(param));  }
+    // pages
+    else if(equals(cmd, "pagePriv")) { int p=pageChange(-1);sprintf(buffer,"%d",p); return buffer; }
+    else if(equals(cmd, "pageNext")) {  int p=pageChange(1);sprintf(buffer,"%d",p); return buffer; }
+    else if(equals(cmd, "pageSize")) { return pageSize();  }
+    else if(equals(cmd, "pageAdd")) { return pageAdd(cmdParam(param));  }
     else if(equals(cmd, "pageDel")) { return pageDel(toInt(cmdParam(param)));  }
+    // list pages
+    else if(equals(cmd, "pages")) { return pageList();  }
+  
+    // set "page 1" 
+    else if(equals(cmd, "page")) { int p=pageSet(cmdParam(param),toInt(cmdParam(param))); sprintf(buffer,"%d",p); return buffer; }
 
     // drawFile file type x y - draw a gif/icon at x,y
     else if(equals(cmd, "drawFile")) { char *f=cmdParam(param); drawFile(f,f,toInt(cmdParam(param)),toInt(cmdParam(param)),false); return EMPTY; }    

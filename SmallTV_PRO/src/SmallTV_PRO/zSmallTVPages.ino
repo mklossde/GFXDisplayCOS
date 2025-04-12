@@ -129,8 +129,8 @@ void pageEsp() {
 void pageTimeDraw() {
   fillRect(0,50,240,25,col_black);
   drawTime(50,50,3,col_red);
-  drawDate(30,140,3,col_red);
-  fillRect(0,120,240,25,col_black);
+  fillRect(0,140,240,25,col_black);
+  drawDate(30,140,3,col_red);  
   drawLine(20,100,220,100,col_white);
   draw();
 }
@@ -186,7 +186,7 @@ void displayPageSetup() {
 //  pages.add(new PageFunc(page_cmd,pageCmd,NULL));
 
   pageStart();  
-  pageSet(1); 
+  pageSet(0,-1); 
 }
 
 void displayPageLoop() {

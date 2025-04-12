@@ -9,7 +9,7 @@
 #include <privatdata.h>
 
 const char *prgTitle = "SmallTVPROCOS";
-const char *prgVersion = "V0.1.1";
+const char *prgVersion = "V0.2.0";
 
 const char* user_admin = "admin"; // default user
 char user_pas[]="admin";   // default espPas
@@ -29,7 +29,7 @@ boolean cmdEnable=true; // enable/disbale serial log
 boolean wifiEnable=true;  // enable/disbale wifi
 boolean ntpEnable=true; // enable time server
 boolean webEnable=true;    // enable/disbale http server
-boolean mdnsEnable=true;   // enable/disable mDNS detection 
+boolean mdnsEnable=false;   // enable/disable mDNS detection 
 boolean bootSafe=false;    // enable/disbale boot safe
 
 #define enableFs true         // enable fs / SPIFFS
@@ -38,8 +38,8 @@ boolean bootSafe=false;    // enable/disbale boot safe
 #define webSerialEnable false // enable/disbale web serial
 #define mqttEnable false      // enable/disbale mqtt
 
-#define otaEnable true        // enabled/disbale ota update 
-#define updateEnable true     // enabled/disbale update firmware via web 
+#define otaEnable false        // enabled/disbale ota update 
+#define updateEnable false     // enabled/disbale update firmware via web 
 
 #define ledEnable false       // enable/disbale serial
 int ledGpio=15;            // io of led

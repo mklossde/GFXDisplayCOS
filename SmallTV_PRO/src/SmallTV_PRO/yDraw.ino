@@ -18,7 +18,7 @@ void draw() {
 void drawClear() {   
   if(!_displaySetup) { return ; }
   if(eeDisplay.displayBuffer) { bufferClear(); } else { displayClear(); }
-//  pageSet(0);
+//  pageSet(250);
 } 
 
 //------------------------------------------------------------------------------
