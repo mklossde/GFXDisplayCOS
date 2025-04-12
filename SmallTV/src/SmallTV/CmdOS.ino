@@ -13,7 +13,7 @@
 #include <sys/time.h>     // time
 
 /* cmdOS from openON.org develop by mk@almi.de */
-const char *cmdOS="V.0.2.5";
+const char *cmdOS="V.0.3.0";
 char *APP_NAME_PREFIX="CmdOs";
  
 String appIP="";
@@ -757,7 +757,7 @@ char* setLogLevel(int level) {
     if(!is(file)) { return -1; }
     else if(!file.startsWith(rootDir)) { file=rootDir+file; }
     File ff = FILESYSTEM.open(file,"r");
-    if(ff==NULL) { logPrintln(LOG_INFO,"missing"); return -1; } 
+    if(ff==NULL) { sprintf(buffer,"missing fsSize %s",file.c_str());logPrintln(LOG_INFO,buffer); return -1; } 
     int len=ff.size();
     ff.close();
     return len;
@@ -844,9 +844,12 @@ char* setLogLevel(int level) {
 
   #if netEnable
 
-//TODO HTTPClient for 8266
-    #include <HTTPClient.h>
     #include <WiFiClient.h>
+  #ifdef ESP32
+    #include <HTTPClient.h>
+  #elif defined(ESP8266)
+    #include <ESP8266HTTPClient.h>    
+  #endif
 
     // e.g. https://www.w3.org/Icons/64x64/home.gif
     char* fsDownload(String url,String name) {
@@ -856,13 +859,19 @@ char* setLogLevel(int level) {
       if(name==NULL) { name=url.substring(url.lastIndexOf('/')); }
       if(!name.startsWith("/")) { name="/"+name; }
 
-      http.begin(url); 
+      #ifdef ESP32
+        http.begin(url); 
+      #elif defined(ESP8266)
+        WiFiClient client;
+        http.begin(client,url); 
+      #endif      
+      
       int httpCode = http.GET();
       int size = http.getSize();
       if(size>MAX_DONWLOAD_SIZE) { http.end(); return "download maxSize error"; }
 
       FILESYSTEM.remove(name);  // remove old file
-      uint8_t buff[128] PROGMEM = {0};
+//      uint8_t buff[128] PROGMEM = {0};
       if (httpCode == 200) {
         sprintf(buffer,"fs downloading '%s' size %d to '%s'", url.c_str(), size,name.c_str());logPrintln(LOG_INFO,buffer);
         File ff = FILESYSTEM.open(name, "w"); 
@@ -886,7 +895,12 @@ char* setLogLevel(int level) {
       if(!is(url,0,250)) { return "missing url"; }
 
       HTTPClient http;
-      http.begin(url); 
+      #ifdef ESP32
+        http.begin(url); 
+      #elif defined(ESP8266)
+        WiFiClient client;
+        http.begin(client,url); 
+      #endif    
       int httpCode = http.GET();
 
       if (httpCode == 200) {
@@ -1346,7 +1360,13 @@ char* swInit(int pin, boolean on, byte mode, int timeBase, byte tickShort, byte 
 //#include <WiFi.h>
 #include <DNSServer.h>
 
-//TODO #include <esp_sntp.h> // time
+#ifdef ESP32
+  #include <esp_sntp.h> // time
+#else
+  #include <sys/time.h>  // struct timeval
+//  #include <coredecls.h>  // ! optional settimeofday_cb() callback to check on server
+#endif
+
 #include <time.h>     // time
 
 #ifdef ESP32
@@ -1379,8 +1399,8 @@ typedef struct {
 eeBoot_t eeBoot;    // bootloader data 
 
 
-#define MAX_NO_WIFI 30 // Max time 60s no wifi
-#define MAX_NO_SETUP 10 // Max time 60s no wifi
+#define MAX_NO_WIFI 120 // Max time 2min no wifi
+#define MAX_NO_SETUP 20 // Max time 60s no wifi
 unsigned long *wifiTime = new unsigned long(0);
 
 #define WIFI_CON_OFF 0
@@ -1678,6 +1698,13 @@ char* wifiScan() {
     ntpRunning=true;
   }
 
+  void ntpSet2(bool from_sntp) {
+    time(&timeNow);                    // read the current time
+    localtime_r(&timeNow, &tm);           // update the structure tm with the current time
+    sprintf(buffer,"NTP set %d",timeNow); logPrintln(LOG_INFO,buffer);
+    ntpRunning=true;    
+  }
+
   /* ntp/timeserver config */
   void ntpSetup() {
   //  esp_sntp_servermode_dhcp(1);  // (optional)
@@ -1695,8 +1722,12 @@ char* wifiScan() {
     int dst=0; // 0=winter-time / 1=summer-time
     sprintf(buffer,"NTP start '%s' gtm_timezone_offset:%d dst:%d",ntpServer,gtm_timezone_offset,dst); logPrintln(LOG_INFO,buffer); 
     configTime(gtm_timezone_offset * 3600, dst*3600, ntpServer); //ntpServer
-  //TODO sntp_set_time_sync_notification_cb fgro 8266 
-    sntp_set_time_sync_notification_cb(ntpSet); // callback on ntp time set
+      
+    #ifdef ESP32
+      sntp_set_time_sync_notification_cb(ntpSet); // callback on ntp time set
+    #else
+      settimeofday_cb(ntpSet2); // callback on ntp time set
+    #endif
   }
 #else 
   void ntpSetup() { } 
@@ -1730,7 +1761,7 @@ char* timeSet(char* time,char* timeServer) {
       #ifdef ESP32
         WiFi.hostByName(ipStr, pingIP);  
       #elif defined(ESP8266)
-        ESP8266WiFi.hostByName(ipStr, pingIP);  
+        WiFi.hostByName(ipStr, pingIP);  
       #endif
       sprintf(buffer,"%s",pingIP.toString().c_str()); return buffer;
   }
@@ -1740,7 +1771,7 @@ char* timeSet(char* time,char* timeServer) {
     #ifdef ESP32
       WiFi.hostByName(ipStr, pingIP);  
     #elif defined(ESP8266)
-      ESP8266WiFi.hostByName(ipStr, pingIP);   
+      WiFi.hostByName(ipStr, pingIP);   
     #endif
 
     int time=-1;
@@ -2123,44 +2154,55 @@ void wifiStart(boolean on) {
 //-------------------------------------------------------------
 
 #if otaEnable
-//TODO NetworkUdp for esp8266
+/*
+#ifdef ESP32
   #include <NetworkUdp.h>
-  #include <ArduinoOTA.h>
+#elif defined(ESP8266)
+  #include <WIFIUdp.h>
+#endif
+*/
+
+#include <ArduinoOTA.h>
 
 void otaSetup() {
-  ArduinoOTA
-    .onStart([]() {
-      String type;
-      if (ArduinoOTA.getCommand() == U_FLASH) { type = "sketch"; }
-      else {  type = "filesystem"; } // U_SPIFFS
-//      FILESYSTEM.end();
-      logPrintln(LOG_INFO,"Start updating " + type);
-    })
-    .onEnd([]() { logPrintln(LOG_INFO,"End");})
-    .onProgress([](unsigned int progress, unsigned int total) { sprintf(buffer,"Progress: %u%%", (progress / (total / 100))); logPrintln(LOG_INFO,buffer); })
-    .onError([](ota_error_t error) {
-      sprintf(buffer,"Error[%u]: ", error); logPrintln(LOG_ERROR,buffer);
-      if (error == OTA_AUTH_ERROR) { logPrintln(LOG_INFO,"Auth Failed");
-      } else if (error == OTA_BEGIN_ERROR) { logPrintln(LOG_INFO,"Begin Failed");
-      } else if (error == OTA_CONNECT_ERROR) { logPrintln(LOG_INFO,"Connect Failed");
-      } else if (error == OTA_RECEIVE_ERROR) { logPrintln(LOG_INFO,"Receive Failed");
-      } else if (error == OTA_END_ERROR) { logPrintln(LOG_INFO,"End Failed");
-      }
-    });
+   
+ ArduinoOTA.onStart([]() {
+    String type;
+    if (ArduinoOTA.getCommand() == U_FLASH) { type = "sketch"; } else {   type = "filesystem"; }
+//      FILESYSTEM.end(); // NOTE: if updating FS this would be the place to unmount FS using FS.end()    
+    if(serialEnable) { Serial.println("Start updating " + type); }
+  });
+  ArduinoOTA.onEnd([]() {
+    if(serialEnable) {  Serial.println("\nEnd"); }
+  });
+  ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
+    if(serialEnable) {  Serial.printf("Progress: %u%%\r", (progress / (total / 100))); }
+  });
+  ArduinoOTA.onError([](ota_error_t error) {
+    if(serialEnable) { 
+      Serial.printf("Error[%u]: ", error);
+      if (error == OTA_AUTH_ERROR) { Serial.println("Auth Failed");
+      } else if (error == OTA_BEGIN_ERROR) { Serial.println("Begin Failed");
+      } else if (error == OTA_CONNECT_ERROR) { Serial.println("Connect Failed");
+      } else if (error == OTA_RECEIVE_ERROR) { Serial.println("Receive Failed");
+      } else if (error == OTA_END_ERROR) { Serial.println("End Failed"); }
+    }
+  });
 
   if(is(eeBoot.espName)) { ArduinoOTA.setHostname(eeBoot.espName); }
   if(is(eeBoot.espPas)) { ArduinoOTA.setPassword(eeBoot.espPas); logPrintln(LOG_INFO,"OTA setup ESPPAS"); }
   else { ArduinoOTA.setPassword("admin"); logPrintln(LOG_INFO,"OTA setup admin");  }
-  
+
   ArduinoOTA.begin();
+  
 }
 
 void otaLoop() {
   ArduinoOTA.handle();
 }
 #else 
-void otaSetup() {}
-void otaLoop() {}
+  void otaSetup() {}
+  void otaLoop() {}
 #endif
 
 
@@ -2187,7 +2229,12 @@ char* mqttCmdTopic; // topic for cmd messages (e.g. device/esp/EspBoot00DC9235/c
 char* mqttResponseTopic; // topic for resposne of cmd messages (e.g. device/esp/EspBoot00DC9235/result) 
 
 WiFiClient *mqttWifiClient=NULL;
-NetworkClientSecure *mqttClientSSL=NULL; // WiFiClientSecure / NetworkClientSecure
+#ifdef ESP32
+  WiFiClientSecure *mqttClientSSL=NULL; // WiFiClientSecure / NetworkClientSecure
+#elif defined(ESP8266)
+  WiFiClientSecure *mqttClientSSL=NULL; // WiFiClientSecure / NetworkClientSecure
+#endif   
+
 PubSubClient *mqttClient=NULL;
 
 static char* mqttTopic=new char[64]; // buffer of topic
@@ -2335,7 +2382,11 @@ void mqttInit() {
     mqttWifiClient=new WiFiClient();  
     mqttClient=new PubSubClient(*mqttWifiClient);
   }else {
-    mqttClientSSL=new NetworkClientSecure();  
+    #ifdef ESP32
+      mqttClientSSL=new WiFiClientSecure();  
+    #elif defined(ESP8266)
+      mqttClientSSL=new WiFiClientSecure();  
+    #endif    
     mqttClient=new PubSubClient(*mqttClientSSL);
   }  
 
@@ -2698,27 +2749,59 @@ void webFileManager(AsyncWebServerRequest *request) {
 // web serial console
 
 #if webSerialEnable
-//TODO AsyncWebSerial fro esp8266
+
+/*
+//TODO AsyncWebSerial for esp8266
   #include <AsyncWebSerial.h>
   String path_console = "/webserial";
   AsyncWebSerial webSerial;
-
-  /* recevie webSerial */
   void webSerialReceive(uint8_t *data, size_t len) {
     String line = "";
     for (int i = 0; i < len; i++) { line += char(data[i]); }
     char ca[len + 1];
     for (int i = 0; i < len; i++) { ca[i] = data[i]; }
     ca[len] = '\0';
-    String ret = cmdLine(ca);  // exec cmd
+    char* ret = cmdLine(ca);  // exec cmd
   }
 
-  /* write log to webSerial */
   void webLogLn(String msg) {
     if (webEnable && _webInit) { webSerial.println(msg); }
   }
 
+  void webSerialSetup() {
+    webSerial.onMessage(webSerialReceive);  // exec cmd
+    webSerial.begin(&server);
+    if (is(eeBoot.espPas)) { webSerial.setAuthentication(user_admin, eeBoot.espPas); }  // webSerial auth
+    sprintf(buffer, "WebSerial started %s", path_console.c_str()); logPrintln(LOG_DEBUG,buffer);
+  }
+
+*/
+
+  #include <WebSerialLite.h>
+
+  void recvMsg(uint8_t *data, size_t len){
+    String line = "";
+    for (int i = 0; i < len; i++) { line += char(data[i]); }
+    char ca[len + 1];
+    for (int i = 0; i < len; i++) { ca[i] = data[i]; }
+    ca[len] = '\0';
+    char* ret = cmdLine(ca);  // exec cmd
+    if(is(ret)) { webLogLn(toString(ret)); }
+  }
+
+  void webLogLn(String msg) {
+    if (webEnable && _webInit) { WebSerial.println(msg); }
+  }
+
+  void webSerialSetup() {
+    WebSerial.begin(&server);
+    WebSerial.onMessage(recvMsg);
+//TODO    if (is(eeBoot.espPas)) { WebSerial.setAuthentication(user_admin, eeBoot.espPas); }  // webSerial auth
+    sprintf(buffer, "WebSerial started /webserial"); logPrintln(LOG_DEBUG,buffer);
+  }
+
 #else
+  void webSerialSetup() {}
   void webLogLn(String msg) {}
 #endif
 
@@ -2886,10 +2969,7 @@ void webSetup() {
 
   #if webSerialEnable
     // web serial console
-    webSerial.onMessage(webSerialReceive);  // exec cmd
-    webSerial.begin(&server);
-    if (is(eeBoot.espPas)) { webSerial.setAuthentication(user_admin, eeBoot.espPas); }  // webSerial auth
-    sprintf(buffer, "WebSerial started %s", path_console.c_str()); logPrintln(LOG_DEBUG,buffer);
+    webSerialSetup();
   #endif
 
   // OTA
@@ -2952,6 +3032,7 @@ void webSetup() {
   // app
   webApp();
 
+
   server.begin();
 
 
@@ -2962,7 +3043,9 @@ void webSetup() {
 void webLoop() {
   #if webSerialEnable
     if (webEnable && _webInit) {
+/*
       webSerial.loop();
+*/      
     }
   #endif
 }
@@ -3662,4 +3745,6 @@ void cmdOSLoop() {
   }
   delay(0);
 }
+
+
 

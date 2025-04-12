@@ -79,7 +79,7 @@ void matrixWeb(AsyncWebServerRequest *request) {
   }
 
   String html = ""; html = pageHead(html, "MatrixHup");
-  File root = FILESYSTEM.open(rootDir);
+  File root = FILESYSTEM.open(rootDir,"r");
   File foundfile = root.openNextFile();
   html+="[<a href=?page=1&nr=1>Title</a>][<a href=?pageNext=1>NextPage</a>][<a href=?pagePriv=1>PrivPage</a>][<a href=?drawOff=1>OFF</a>]";
   html+="<table><tr>";

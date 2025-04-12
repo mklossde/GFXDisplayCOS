@@ -1,4 +1,4 @@
-# GFXDisplayCOS V0.2.0 a OpenOn.org project
+# GFXDisplayCOS a OpenOn.org project
 
 develop by mk@almi.de used <a href="https://github.com/mklossde/CmdOs">CmdOS</A>
 

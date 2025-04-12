@@ -1,12 +1,19 @@
 
-#include <WiFi.h>
+#ifdef ESP32
+  #include <WiFi.h>
+#elif defined(ESP8266)
+  #include <ESP8266WiFi.h>
+#elif defined(TARGET_RP2040)
+  #include <WiFi.h>
+#endif
+
 #include <EEPROM.h>       // EEprom read/write
 
 #include <time.h>         // time 
 #include <sys/time.h>     // time
 
 /* cmdOS from openON.org develop by mk@almi.de */
-const char *cmdOS="V.0.2.5";
+const char *cmdOS="V.0.3.0";
 char *APP_NAME_PREFIX="CmdOs";
  
 String appIP="";
@@ -364,6 +371,7 @@ char* to(const char *a, const char *b,const char *c,const char *d,const char *e)
 
 /* convert cahr* to string */
 String toString(const char *text) {  if(!is(text)) { return EMPTYSTRING; } return String(text); }
+String toString(char *text) {  if(!is(text)) { return EMPTYSTRING; } return String(text); }
 
 boolean toBoolean(int i) { return i>0; }
 /* convert char* to boolean */
@@ -419,9 +427,13 @@ void espRestart(char* message) {
 
 /* espChip ID */
 uint32_t espChipId() {
+  #ifdef ESP32
     uint32_t chipId=0;
     for (int i = 0; i < 17; i = i + 8) { chipId |= ((ESP.getEfuseMac() >> (40 - i)) & 0xff) << i;}
     return chipId;
+  #elif defined(ESP8266)
+    return ESP.getChipId();
+  #endif
 }
 
 /* esp info */
@@ -456,12 +468,13 @@ boolean ntpRunning=false;           // is ntpServer running
     nextTime=2 => OFF
     nextTime=0 => off, nextTime=executeTime
  period= next period in ms
+    period=-1 (one time, but off after)
  e.g.
     unsigned long *wifiTime = new unsigned long(0);
     if (isTimer(wifiTime, 1000)) {....}
 */
 boolean isTimer(unsigned long *lastTime, unsigned long period) {
-  if(*lastTime==2) { return false; } // lastTime=2 => OFF
+  if(*lastTime==2 ) { return false; } // lastTime=2 => OFF
   else if(*lastTime==0) {  // do now
     *lastTime=_timeMs; // 0= start now
     if(*lastTime>=0 && *lastTime<2) { *lastTime=3; }
@@ -470,7 +483,7 @@ boolean isTimer(unsigned long *lastTime, unsigned long period) {
     *lastTime=_timeMs; // 1= start next period
     if(*lastTime>=0 && *lastTime<2) { *lastTime=3; }
     return false;  
-  }else if (_timeMs >= *lastTime+period) {  // next period found
+  }else if (period!=-1 && _timeMs >= *lastTime+period) {  // next period found
     *lastTime = _timeMs; 
       if(*lastTime>=0 && *lastTime<2) { *lastTime=3; }
     return true;
@@ -641,12 +654,15 @@ char* setLogLevel(int level) {
 //-----------------------------------------------------------------------------
 // SPIFFS
 
-#if enableFs
-  #include <SPIFFS.h>
-  #ifdef ESP32
+#if enableFs    
+  #ifdef ESP32  
+    #include <SPIFFS.h>  
     #define FILESYSTEM SPIFFS
   #elif defined(ESP8266)
-    #define FILESYSTEM U_FS
+//    #include <SPIFFS.h>
+//    #define FILESYSTEM U_FS
+    #include <LittleFS.h>  
+    #define FILESYSTEM LittleFS
   #endif
 
   String rootDir="/";
@@ -672,7 +688,7 @@ char* setLogLevel(int level) {
   boolean fsWrite(String file,char *p1) { 
     if(!is(file)) { return false; }
     else if(!file.startsWith(rootDir)) { file=rootDir+file; }
-    File ff = FILESYSTEM.open(file, FILE_WRITE);
+    File ff = FILESYSTEM.open(file, "w");
     if(!ff){ return false; }
     int len=strlen(p1);
     if(p1!=NULL && len>0) { ff.print(p1); }
@@ -685,7 +701,7 @@ char* setLogLevel(int level) {
   boolean fsWriteBin(String file,uint8_t *p1,int len) { 
     if(!is(file)) { return false; }
     else if(!file.startsWith(rootDir)) { file=rootDir+file; }    
-    File ff = FILESYSTEM.open(file, FILE_WRITE);
+    File ff = FILESYSTEM.open(file, "w");
     if(!ff){ return false; }
     ff.write(p1,len);
     ff.close();
@@ -702,7 +718,7 @@ char* setLogLevel(int level) {
   char* fsRead(String file) {  
     if(!is(file)) { return NULL; }
     else if(!file.startsWith(rootDir)) { file=rootDir+file; }
-    File ff = FILESYSTEM.open(file, FILE_READ);  
+    File ff = FILESYSTEM.open(file, "r");  
     if(ff==NULL) { sprintf(buffer,"fsRead unkown '%s'",file.c_str());logPrintln(LOG_INFO,buffer);   return NULL; } 
     size_t fileSize= ff.size();
 
@@ -724,7 +740,7 @@ char* setLogLevel(int level) {
   uint8_t* fsReadBin(String file, size_t& fileSize) {
     if(!is(file)) { return NULL; }
     else if(!file.startsWith(rootDir)) { file=rootDir+file; }
-    File ff = FILESYSTEM.open(file, FILE_READ);  
+    File ff = FILESYSTEM.open(file, "r");  
     if(ff==NULL) { sprintf(buffer,"fsReadBin unkown '%s'",file.c_str());logPrintln(LOG_INFO,buffer);   return NULL; } 
     fileSize= ff.size();
 
@@ -740,8 +756,8 @@ char* setLogLevel(int level) {
   int fsSize(String file) { 
     if(!is(file)) { return -1; }
     else if(!file.startsWith(rootDir)) { file=rootDir+file; }
-    File ff = FILESYSTEM.open(file);
-    if(ff==NULL) { logPrintln(LOG_INFO,"missing"); return -1; } 
+    File ff = FILESYSTEM.open(file,"r");
+    if(ff==NULL) { sprintf(buffer,"missing fsSize %s",file.c_str());logPrintln(LOG_INFO,buffer); return -1; } 
     int len=ff.size();
     ff.close();
     return len;
@@ -751,7 +767,7 @@ char* setLogLevel(int level) {
   void fsCat(String file) { 
     if(!is(file)) { return ; }
     else if(!file.startsWith(rootDir)) { file=rootDir+file; }
-    File ff = FILESYSTEM.open(file, FILE_READ);
+    File ff = FILESYSTEM.open(file, "r");
     if(ff==NULL) { logPrintln(LOG_INFO,"missing");  } 
     char buffer[50];
     while (ff.available()) {
@@ -767,7 +783,7 @@ char* setLogLevel(int level) {
   char* fsDir(String find) {
     if(!isAccess(ACCESS_READ))  { return "NO ACCESS fsDir"; }
     sprintf(buffer,"Files:\n");
-    File root = FILESYSTEM.open(rootDir);
+    File root = FILESYSTEM.open(rootDir,"r");
     File foundfile = root.openNextFile();
     while (foundfile) {
       String file=foundfile.name();
@@ -784,7 +800,7 @@ char* setLogLevel(int level) {
   /* list number of files in SPIFFS of dir (null=/) */
   int fsDirSize(String find) {
     int count=0;
-    File root = FILESYSTEM.open(rootDir);
+    File root = FILESYSTEM.open(rootDir,"r");
     File foundfile = root.openNextFile();
     while (foundfile) {
       String file=foundfile.name();
@@ -801,7 +817,7 @@ char* setLogLevel(int level) {
       type=1 => size of file
   */
   char* fsFile(String find,int count,int type) {
-    File root = FILESYSTEM.open(rootDir);
+    File root = FILESYSTEM.open(rootDir,"r");
     File foundfile = root.openNextFile();
     while (foundfile) {
       String file=foundfile.name();
@@ -828,8 +844,12 @@ char* setLogLevel(int level) {
 
   #if netEnable
 
-    #include <HTTPClient.h>
     #include <WiFiClient.h>
+  #ifdef ESP32
+    #include <HTTPClient.h>
+  #elif defined(ESP8266)
+    #include <ESP8266HTTPClient.h>    
+  #endif
 
     // e.g. https://www.w3.org/Icons/64x64/home.gif
     char* fsDownload(String url,String name) {
@@ -839,16 +859,22 @@ char* setLogLevel(int level) {
       if(name==NULL) { name=url.substring(url.lastIndexOf('/')); }
       if(!name.startsWith("/")) { name="/"+name; }
 
-      http.begin(url); 
+      #ifdef ESP32
+        http.begin(url); 
+      #elif defined(ESP8266)
+        WiFiClient client;
+        http.begin(client,url); 
+      #endif      
+      
       int httpCode = http.GET();
       int size = http.getSize();
       if(size>MAX_DONWLOAD_SIZE) { http.end(); return "download maxSize error"; }
 
       FILESYSTEM.remove(name);  // remove old file
-      uint8_t buff[128] PROGMEM = {0};
+//      uint8_t buff[128] PROGMEM = {0};
       if (httpCode == 200) {
         sprintf(buffer,"fs downloading '%s' size %d to '%s'", url.c_str(), size,name.c_str());logPrintln(LOG_INFO,buffer);
-        File ff = FILESYSTEM.open(name, FILE_WRITE); 
+        File ff = FILESYSTEM.open(name, "w"); 
         http.writeToStream(&ff);
         ff.close();
 
@@ -869,7 +895,12 @@ char* setLogLevel(int level) {
       if(!is(url,0,250)) { return "missing url"; }
 
       HTTPClient http;
-      http.begin(url); 
+      #ifdef ESP32
+        http.begin(url); 
+      #elif defined(ESP8266)
+        WiFiClient client;
+        http.begin(client,url); 
+      #endif    
       int httpCode = http.GET();
 
       if (httpCode == 200) {
@@ -888,8 +919,8 @@ char* setLogLevel(int level) {
     }
 
   #else 
-    String fsDownload(String url,String name) { return EMPTY; }
-    String rest(String url) { return EMPTY; }  
+    char* fsDownload(String url,String name) { return EMPTY; }
+    char* rest(String url) { return EMPTY; }  
   #endif
 
 
@@ -905,14 +936,21 @@ String fsToSize(const size_t bytes) {
 /* filesystem setup */
 void fsSetup() {
   if(!enableFs) { return ; }
-  if (!FILESYSTEM.begin(true)) {    // if you have not used SPIFFS before on a ESP32, it will show this error. after a reboot SPIFFS will be configured and will happily work.
-    espRestart("SPIFFS ERROR: Cannot mount SPIFFS");
-  }
+  #ifdef ESP32
+    if (!FILESYSTEM.begin(true)) {    // if you have not used SPIFFS before on a ESP32, it will show this error. after a reboot SPIFFS will be configured and will happily work.
+      espRestart("FILESYSTEM ERROR: Cannot mount");
+    }
+  #endif
   if(!FILESYSTEM.begin()){
-    logPrintln(LOG_SYSTEM,"SPIFFS Mount Failed");
+    logPrintln(LOG_SYSTEM,"FILESYSTEM Mount Failed");
   } else {
-    sprintf(buffer,"SPIFFS Free:%s Used:%s Total:%s",
-      fsToSize((FILESYSTEM.totalBytes() - FILESYSTEM.usedBytes())),fsToSize(FILESYSTEM.usedBytes()),fsToSize(FILESYSTEM.totalBytes()));logPrintln(LOG_INFO,buffer);
+    #ifdef ESP32
+      sprintf(buffer,"SPIFFS Free:%s Used:%s Total:%s",
+        fsToSize((FILESYSTEM.totalBytes() - FILESYSTEM.usedBytes())),fsToSize(FILESYSTEM.usedBytes()),fsToSize(FILESYSTEM.totalBytes()));logPrintln(LOG_INFO,buffer);
+    #else
+//TODO show nonne spiff fs ?     
+      sprintf(buffer,"FS");logPrintln(LOG_INFO,buffer);
+    #endif
   }
 }
 
@@ -931,6 +969,7 @@ void fsSetup() {
   void fsSetup() {}
   void fsFormat() {}
 #endif
+
 //-------------------------------------------------------------------------------------------------------------------
 // LED
 
@@ -1173,7 +1212,11 @@ public:
   // read button
   byte swRead() {
     if (_swMode == SW_MODE_TOUCH) {
-      return touchRead(_swGpio);
+      #ifdef ESP32
+        return touchRead(_swGpio);
+      #else 
+        return digitalRead(_swGpio);
+      #endif 
     } else {
       return digitalRead(_swGpio);
     }
@@ -1241,11 +1284,11 @@ public:
     swLast = !swOn;
     if (_swMode == SW_MODE_TOUCH) {
     }                                                                        //
-    else if (_swMode == SW_MODE_PULLUP) { pinMode(_swGpio, INPUT_PULLUP); }  // input with interal pullup ( _swGpio=GND (false) => pressed)
-    else if (_swMode == SW_MODE_PULLDOWN) {
-      pinMode(_swGpio, INPUT_PULLDOWN);
-    }  // input with interal pulldown
-    else { pinMode(_swGpio, INPUT); }
+    else if (_swMode == SW_MODE_PULLUP) { pinMode(_swGpio, INPUT_PULLUP);   // input with interal pullup ( _swGpio=GND (false) => pressed)
+    #ifdef ESP32
+      }else if (_swMode == SW_MODE_PULLDOWN) { pinMode(_swGpio, INPUT_PULLDOWN); // input with interal pulldown
+    #endif
+    }  else { pinMode(_swGpio, INPUT); }
     if (_swOn == 2) {
       byte swNow = swRead();
       if (swNow == 0) {
@@ -1314,10 +1357,16 @@ char* swInit(int pin, boolean on, byte mode, int timeBase, byte tickShort, byte 
  * Wifi
  */
  
-#include <WiFi.h>
+//#include <WiFi.h>
 #include <DNSServer.h>
 
-#include <esp_sntp.h> // time
+#ifdef ESP32
+  #include <esp_sntp.h> // time
+#else
+  #include <sys/time.h>  // struct timeval
+//  #include <coredecls.h>  // ! optional settimeofday_cb() callback to check on server
+#endif
+
 #include <time.h>     // time
 
 #ifdef ESP32
@@ -1350,8 +1399,8 @@ typedef struct {
 eeBoot_t eeBoot;    // bootloader data 
 
 
-#define MAX_NO_WIFI 30 // Max time 60s no wifi
-#define MAX_NO_SETUP 10 // Max time 60s no wifi
+#define MAX_NO_WIFI 120 // Max time 2min no wifi
+#define MAX_NO_SETUP 20 // Max time 60s no wifi
 unsigned long *wifiTime = new unsigned long(0);
 
 #define WIFI_CON_OFF 0
@@ -1606,6 +1655,7 @@ void mdnsSetup() {
 //-------------------------------------------------------------------------------------------------------------------
 // Wifi
 
+/*
 #ifdef ESP32
   #include <WiFi.h>
 #elif defined(ESP8266)
@@ -1613,7 +1663,7 @@ void mdnsSetup() {
 #elif defined(TARGET_RP2040)
   #include <WiFi.h>
 #endif
-
+*/
 
 void webSetup();
 
@@ -1635,37 +1685,53 @@ char* wifiScan() {
 //-------------------------------------------------------------------------------------------------------------------
 // time
 
-//const char* const PROGMEM NTP_SERVER[] = {"fritz.box", "de.pool.ntp.org", "at.pool.ntp.org", "ch.pool.ntp.org", "ptbtime1.ptb.de", "europe.pool.ntp.org"};
-//const char *NTP_TZ    = "CET-1CEST,M3.5.0,M10.5.0/3";
-#define timezone "CET-1CEST,M3.5.0/02,M10.5.0/03" // https://github.com/nayarsystems/posix_tz_db/blob/master/zones.csv
+#if ntpEnable
+  //const char* const PROGMEM NTP_SERVER[] = {"fritz.box", "de.pool.ntp.org", "at.pool.ntp.org", "ch.pool.ntp.org", "ptbtime1.ptb.de", "europe.pool.ntp.org"};
+  //const char *NTP_TZ    = "CET-1CEST,M3.5.0,M10.5.0/3";
+  #define timezone "CET-1CEST,M3.5.0/02,M10.5.0/03" // https://github.com/nayarsystems/posix_tz_db/blob/master/zones.csv
 
-// callback when ntp time is given
-void ntpSet(struct timeval *tv) {
-  time(&timeNow);                    // read the current time
-  localtime_r(&timeNow, &tm);           // update the structure tm with the current time
-  sprintf(buffer,"NTP set %d",timeNow); logPrintln(LOG_INFO,buffer);
-  ntpRunning=true;
-}
-
-/* ntp/timeserver config */
-void ntpSetup() {
-//  esp_sntp_servermode_dhcp(1);  // (optional)
-
-  if(is(eeBoot.wifi_ntp,1,32)) { 
-    ntpServer=eeBoot.wifi_ntp;     
-  }else { 
-    String gw=WiFi.gatewayIP().toString();
-    ntpServer = copy((char*)gw.c_str());
+  // callback when ntp time is given
+  void ntpSet(struct timeval *tv) {
+    time(&timeNow);                    // read the current time
+    localtime_r(&timeNow, &tm);           // update the structure tm with the current time
+    sprintf(buffer,"NTP set %d",timeNow); logPrintln(LOG_INFO,buffer);
+    ntpRunning=true;
   }
-  
-  if(ntpServer==NULL) {  logPrintln(LOG_ERROR,"ntp server missing");  return ; }
 
-  int gtm_timezone_offset=0; // gmt+ or gmt-
-  int dst=0; // 0=winter-time / 1=summer-time
-  sprintf(buffer,"NTP start '%s' gtm_timezone_offset:%d dst:%d",ntpServer,gtm_timezone_offset,dst); logPrintln(LOG_INFO,buffer); 
-  configTime(gtm_timezone_offset * 3600, dst*3600, ntpServer); //ntpServer
-  sntp_set_time_sync_notification_cb(ntpSet); // callback on ntp time set
-}
+  void ntpSet2(bool from_sntp) {
+    time(&timeNow);                    // read the current time
+    localtime_r(&timeNow, &tm);           // update the structure tm with the current time
+    sprintf(buffer,"NTP set %d",timeNow); logPrintln(LOG_INFO,buffer);
+    ntpRunning=true;    
+  }
+
+  /* ntp/timeserver config */
+  void ntpSetup() {
+  //  esp_sntp_servermode_dhcp(1);  // (optional)
+
+    if(is(eeBoot.wifi_ntp,1,32)) { 
+      ntpServer=eeBoot.wifi_ntp;     
+    }else { 
+      String gw=WiFi.gatewayIP().toString();
+      ntpServer = copy((char*)gw.c_str());
+    }
+    
+    if(ntpServer==NULL) {  logPrintln(LOG_ERROR,"ntp server missing");  return ; }
+
+    int gtm_timezone_offset=0; // gmt+ or gmt-
+    int dst=0; // 0=winter-time / 1=summer-time
+    sprintf(buffer,"NTP start '%s' gtm_timezone_offset:%d dst:%d",ntpServer,gtm_timezone_offset,dst); logPrintln(LOG_INFO,buffer); 
+    configTime(gtm_timezone_offset * 3600, dst*3600, ntpServer); //ntpServer
+      
+    #ifdef ESP32
+      sntp_set_time_sync_notification_cb(ntpSet); // callback on ntp time set
+    #else
+      settimeofday_cb(ntpSet2); // callback on ntp time set
+    #endif
+  }
+#else 
+  void ntpSetup() { } 
+#endif
 
 /* set time and timeServer [ADMIN] */
 char* timeSet(char* time,char* timeServer) {
@@ -1692,13 +1758,22 @@ char* timeSet(char* time,char* timeServer) {
 
   /* dns resolve ip/host to ip (e.g. char* name=netDns("192.168.1.1"); */
   char* netDns(char *ipStr) {
-      WiFi.hostByName(ipStr, pingIP);  
+      #ifdef ESP32
+        WiFi.hostByName(ipStr, pingIP);  
+      #elif defined(ESP8266)
+        WiFi.hostByName(ipStr, pingIP);  
+      #endif
       sprintf(buffer,"%s",pingIP.toString().c_str()); return buffer;
   }
 
   /* ping given ip/host and return info (e.g. char* info=cmdPing("192.168.1.1"); ) */
   char* cmdPing(char *ipStr) { 
-    WiFi.hostByName(ipStr, pingIP);  
+    #ifdef ESP32
+      WiFi.hostByName(ipStr, pingIP);  
+    #elif defined(ESP8266)
+      WiFi.hostByName(ipStr, pingIP);   
+    #endif
+
     int time=-1;
     if(Ping.ping(pingIP,1)) { time=Ping.minTime(); } 
     sprintf(buffer,"PING %s=%s time:%d",ipStr,pingIP.toString().c_str(),time); return buffer;
@@ -2079,43 +2154,55 @@ void wifiStart(boolean on) {
 //-------------------------------------------------------------
 
 #if otaEnable
+/*
+#ifdef ESP32
   #include <NetworkUdp.h>
-  #include <ArduinoOTA.h>
+#elif defined(ESP8266)
+  #include <WIFIUdp.h>
+#endif
+*/
+
+#include <ArduinoOTA.h>
 
 void otaSetup() {
-  ArduinoOTA
-    .onStart([]() {
-      String type;
-      if (ArduinoOTA.getCommand() == U_FLASH) { type = "sketch"; }
-      else {  type = "filesystem"; } // U_SPIFFS
-//      FILESYSTEM.end();
-      logPrintln(LOG_INFO,"Start updating " + type);
-    })
-    .onEnd([]() { logPrintln(LOG_INFO,"End");})
-    .onProgress([](unsigned int progress, unsigned int total) { sprintf(buffer,"Progress: %u%%", (progress / (total / 100))); logPrintln(LOG_INFO,buffer); })
-    .onError([](ota_error_t error) {
-      sprintf(buffer,"Error[%u]: ", error); logPrintln(LOG_ERROR,buffer);
-      if (error == OTA_AUTH_ERROR) { logPrintln(LOG_INFO,"Auth Failed");
-      } else if (error == OTA_BEGIN_ERROR) { logPrintln(LOG_INFO,"Begin Failed");
-      } else if (error == OTA_CONNECT_ERROR) { logPrintln(LOG_INFO,"Connect Failed");
-      } else if (error == OTA_RECEIVE_ERROR) { logPrintln(LOG_INFO,"Receive Failed");
-      } else if (error == OTA_END_ERROR) { logPrintln(LOG_INFO,"End Failed");
-      }
-    });
+   
+ ArduinoOTA.onStart([]() {
+    String type;
+    if (ArduinoOTA.getCommand() == U_FLASH) { type = "sketch"; } else {   type = "filesystem"; }
+//      FILESYSTEM.end(); // NOTE: if updating FS this would be the place to unmount FS using FS.end()    
+    if(serialEnable) { Serial.println("Start updating " + type); }
+  });
+  ArduinoOTA.onEnd([]() {
+    if(serialEnable) {  Serial.println("\nEnd"); }
+  });
+  ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
+    if(serialEnable) {  Serial.printf("Progress: %u%%\r", (progress / (total / 100))); }
+  });
+  ArduinoOTA.onError([](ota_error_t error) {
+    if(serialEnable) { 
+      Serial.printf("Error[%u]: ", error);
+      if (error == OTA_AUTH_ERROR) { Serial.println("Auth Failed");
+      } else if (error == OTA_BEGIN_ERROR) { Serial.println("Begin Failed");
+      } else if (error == OTA_CONNECT_ERROR) { Serial.println("Connect Failed");
+      } else if (error == OTA_RECEIVE_ERROR) { Serial.println("Receive Failed");
+      } else if (error == OTA_END_ERROR) { Serial.println("End Failed"); }
+    }
+  });
 
   if(is(eeBoot.espName)) { ArduinoOTA.setHostname(eeBoot.espName); }
   if(is(eeBoot.espPas)) { ArduinoOTA.setPassword(eeBoot.espPas); logPrintln(LOG_INFO,"OTA setup ESPPAS"); }
   else { ArduinoOTA.setPassword("admin"); logPrintln(LOG_INFO,"OTA setup admin");  }
-  
+
   ArduinoOTA.begin();
+  
 }
 
 void otaLoop() {
   ArduinoOTA.handle();
 }
 #else 
-void otaSetup() {}
-void otaLoop() {}
+  void otaSetup() {}
+  void otaLoop() {}
 #endif
 
 
@@ -2142,7 +2229,12 @@ char* mqttCmdTopic; // topic for cmd messages (e.g. device/esp/EspBoot00DC9235/c
 char* mqttResponseTopic; // topic for resposne of cmd messages (e.g. device/esp/EspBoot00DC9235/result) 
 
 WiFiClient *mqttWifiClient=NULL;
-NetworkClientSecure *mqttClientSSL=NULL; // WiFiClientSecure / NetworkClientSecure
+#ifdef ESP32
+  WiFiClientSecure *mqttClientSSL=NULL; // WiFiClientSecure / NetworkClientSecure
+#elif defined(ESP8266)
+  WiFiClientSecure *mqttClientSSL=NULL; // WiFiClientSecure / NetworkClientSecure
+#endif   
+
 PubSubClient *mqttClient=NULL;
 
 static char* mqttTopic=new char[64]; // buffer of topic
@@ -2290,7 +2382,11 @@ void mqttInit() {
     mqttWifiClient=new WiFiClient();  
     mqttClient=new PubSubClient(*mqttWifiClient);
   }else {
-    mqttClientSSL=new NetworkClientSecure();  
+    #ifdef ESP32
+      mqttClientSSL=new WiFiClientSecure();  
+    #elif defined(ESP8266)
+      mqttClientSSL=new WiFiClientSecure();  
+    #endif    
     mqttClient=new PubSubClient(*mqttClientSSL);
   }  
 
@@ -2374,19 +2470,16 @@ void mqttLoop() {
   void mqttAttr(char *topic,boolean on) {}
 #endif
 
+
 #include <Arduino.h>
 #ifdef ESP32
+//  #include <WiFi.h>  
   #include <AsyncTCP.h>
-  #include <WiFi.h>  
   #include <ESPmDNS.h>
-  
-
 #elif defined(ESP8266)
-  #include <ESP8266WiFi.h>
+//  #include <ESP8266WiFi.h>
   #include <ESPAsyncTCP.h>
-  
   #include <ESP8266mDNS.h>
-  
 #endif
 
 
@@ -2498,7 +2591,7 @@ void webFileManagerEd(AsyncWebServerRequest *request, String name) {
   html = pageHead(html, "File Manager - Ed");
   html += "<form method='GET' action='?doSave=1'><input type='text' name='name' value='" + name + "'/><br>";
   html += "<textarea label='" + name + "' name='value' cols='80' rows='40'>";
-  File ff = SPIFFS.open(name, FILE_READ);
+  File ff = SPIFFS.open(name, "r");
   if (ff) { html += ff.readString(); }
   ff.close();
   html += "</textarea><br><input type='submit' name='doSave' value='save'>";
@@ -2511,7 +2604,7 @@ void webFileManagerEd(AsyncWebServerRequest *request, String name) {
 void webFileManagerSave(AsyncWebServerRequest *request, String name, String value) {  
   if(!isWebAccess(ACCESS_CHANGE)) { request->send(403, "text/html"); }
   
-  File ff = SPIFFS.open(name, FILE_WRITE);
+  File ff = SPIFFS.open(name, "w");
   if (value != NULL) { ff.print(value); }
   ff.close();
   sprintf(buffer, "save %s", name.c_str()); logPrintln(LOG_INFO,buffer);
@@ -2526,9 +2619,9 @@ void webFileManagerUpload(AsyncWebServerRequest *request, String file, size_t in
   File ff;
   if (!index) {
     FILESYSTEM.remove(rootDir + file); // remove old file 
-    ff = SPIFFS.open(rootDir + file, FILE_WRITE);
+    ff = SPIFFS.open(rootDir + file, "w");
   } else {
-    ff = SPIFFS.open(rootDir + file, FILE_APPEND);
+    ff = SPIFFS.open(rootDir + file, "a");
   }
 
   for (size_t i = 0; i < len; i++) { ff.write(data[i]); }
@@ -2556,7 +2649,7 @@ void webFileManager(AsyncWebServerRequest *request) {
   String html = "";
   html = pageHead(html, "File Manager");
   html += "[<a href='?ed=1&name=/new'>new</a>]<p>";
-  File root = SPIFFS.open(rootDir);
+  File root = FILESYSTEM.open(rootDir,"r");
   File foundfile = root.openNextFile();
   while (foundfile) {
     String name = String(foundfile.name());
@@ -2606,15 +2699,18 @@ void webFileManager(AsyncWebServerRequest *request) {
     if (!index) {
       logPrintln(LOG_SYSTEM,"Update");
       content_len = request->contentLength();
-      int cmd = (filename.indexOf("spiffs") > -1) ? U_SPIFFS  : U_FLASH;  // if filename includes spiffs, update the spiffs partition
-  #ifdef ESP8266
-      Update.runAsync(true);
-      if (!Update.begin(content_len, cmd)) {
-  #else
-      if (!Update.begin(UPDATE_SIZE_UNKNOWN, cmd)) {
-  #endif
-        Update.printError(Serial);
-      }
+      #ifdef ESP8266
+        Update.runAsync(true);
+        if (filename.indexOf("filesystem") > -1) {            
+          if (!Update.begin(content_len, U_FS)) { Update.printError(Serial); }
+        }else {
+          uint32_t maxSketchSpace = (ESP.getFreeSketchSpace() - 0x1000) & 0xFFFFF000;
+          if (!Update.begin(maxSketchSpace, U_FLASH)) { Update.printError(Serial); }
+        }
+      #else
+        int cmd = (filename.indexOf("spiffs") > -1) ? U_SPIFFS  : U_FLASH;  // if filename includes spiffs, update the spiffs partition
+        if (!Update.begin(UPDATE_SIZE_UNKNOWN, cmd)) { Update.printError(Serial); }
+      #endif
     }
 
     if (Update.write(data, len) != len) {
@@ -2639,7 +2735,7 @@ void webFileManager(AsyncWebServerRequest *request) {
   }
 
   void webProgress(size_t prg, size_t sz) {
-    sprintf(buffer, "Progress: %d%%\n", (prg * 100) / content_len);
+    sprintf(buffer, "Progress: %d%%", (prg * 100) / content_len);
     logPrintln(LOG_SYSTEM,buffer);
   }
 
@@ -2653,26 +2749,59 @@ void webFileManager(AsyncWebServerRequest *request) {
 // web serial console
 
 #if webSerialEnable
+
+/*
+//TODO AsyncWebSerial for esp8266
   #include <AsyncWebSerial.h>
   String path_console = "/webserial";
   AsyncWebSerial webSerial;
-
-  /* recevie webSerial */
   void webSerialReceive(uint8_t *data, size_t len) {
     String line = "";
     for (int i = 0; i < len; i++) { line += char(data[i]); }
     char ca[len + 1];
     for (int i = 0; i < len; i++) { ca[i] = data[i]; }
     ca[len] = '\0';
-    String ret = cmdLine(ca);  // exec cmd
+    char* ret = cmdLine(ca);  // exec cmd
   }
 
-  /* write log to webSerial */
   void webLogLn(String msg) {
     if (webEnable && _webInit) { webSerial.println(msg); }
   }
 
+  void webSerialSetup() {
+    webSerial.onMessage(webSerialReceive);  // exec cmd
+    webSerial.begin(&server);
+    if (is(eeBoot.espPas)) { webSerial.setAuthentication(user_admin, eeBoot.espPas); }  // webSerial auth
+    sprintf(buffer, "WebSerial started %s", path_console.c_str()); logPrintln(LOG_DEBUG,buffer);
+  }
+
+*/
+
+  #include <WebSerialLite.h>
+
+  void recvMsg(uint8_t *data, size_t len){
+    String line = "";
+    for (int i = 0; i < len; i++) { line += char(data[i]); }
+    char ca[len + 1];
+    for (int i = 0; i < len; i++) { ca[i] = data[i]; }
+    ca[len] = '\0';
+    char* ret = cmdLine(ca);  // exec cmd
+    if(is(ret)) { webLogLn(toString(ret)); }
+  }
+
+  void webLogLn(String msg) {
+    if (webEnable && _webInit) { WebSerial.println(msg); }
+  }
+
+  void webSerialSetup() {
+    WebSerial.begin(&server);
+    WebSerial.onMessage(recvMsg);
+//TODO    if (is(eeBoot.espPas)) { WebSerial.setAuthentication(user_admin, eeBoot.espPas); }  // webSerial auth
+    sprintf(buffer, "WebSerial started /webserial"); logPrintln(LOG_DEBUG,buffer);
+  }
+
 #else
+  void webSerialSetup() {}
   void webLogLn(String msg) {}
 #endif
 
@@ -2840,10 +2969,7 @@ void webSetup() {
 
   #if webSerialEnable
     // web serial console
-    webSerial.onMessage(webSerialReceive);  // exec cmd
-    webSerial.begin(&server);
-    if (is(eeBoot.espPas)) { webSerial.setAuthentication(user_admin, eeBoot.espPas); }  // webSerial auth
-    sprintf(buffer, "WebSerial started %s", path_console.c_str()); logPrintln(LOG_DEBUG,buffer);
+    webSerialSetup();
   #endif
 
   // OTA
@@ -2906,6 +3032,7 @@ void webSetup() {
   // app
   webApp();
 
+
   server.begin();
 
 
@@ -2916,7 +3043,9 @@ void webSetup() {
 void webLoop() {
   #if webSerialEnable
     if (webEnable && _webInit) {
+/*
       webSerial.loop();
+*/      
     }
   #endif
 }
@@ -2925,6 +3054,7 @@ void webStart(boolean on) {
   webEnable = on;
   webSetup();
 }
+
 
 // Serial Command Line
 
@@ -3526,7 +3656,7 @@ char* cmdFile(char* p0) {
 
 /* call http/rest and execute return body as cmd */
 char* cmdRest(char *url) {
-  char* ret=rest(String(url));  
+  char* ret=rest(toString(url));  
   if(!is(ret)) { return NULL; } 
   sprintf(buffer,"cmdRest %s",ret); logPrintln(LOG_DEBUG,buffer);
   return cmdPrg(ret);
@@ -3569,6 +3699,7 @@ void cmdLoop() {
     }
   }
 }
+
 
 
 void cmdOSSetup() {
@@ -3614,9 +3745,6 @@ void cmdOSLoop() {
   }
   delay(0);
 }
-
-
-
 
 
 

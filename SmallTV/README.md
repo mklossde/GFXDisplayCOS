@@ -1,4 +1,4 @@
-# SmallTVCOS V0.1.0 a OpenOn.org project
+# SmallTVCOS V0.1.1 a OpenOn.org project
 develop by mk@almi.de based on <a href="https://github.com/mklossde/CmdOs">CmdOS</A>
 
 ![Small Desktop Weather Clock](images/STV_Title.gif) ![HelloCubic Lite](images/HelloCubicLite.gif) ![Nixie Tube](images/NixieTube.gif)
@@ -8,7 +8,9 @@ GFXDisplayCOS implementation for the
 - the GeekMagic HelloCubic-Lite
 - the Nixie Tube
 
-!! NOT ALL FUNCTION WORKS YET WITH THIS VERSION !!
+## Flash via USB
+
+Flash Version <a href='bin/'>bin</a> via USB with <a href='https://web.esphome.io/'>esp-web-tools</a> 
 
 
 <hr> :warning: Attention: The use of information and programmes can be dangerous !  This is a private hobby project and makes no claim to completeness, runnability or compliance with regulations. Any use of this or referenced content is at your own risk and excludes any liability by authors. 

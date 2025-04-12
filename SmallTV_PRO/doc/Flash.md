@@ -8,7 +8,7 @@ A build version is at <a href="../bin">bin</A>
 - Access via IP from  browser and update firmware to SmallTVCOS.
 - (Update will take some time)
 
-Use "SmallTVCOS.ino.bin" for this update.
+Use "SmallTVCOS_Vxxx.bin" for this update.
 
 
 ## Flash via Serial 
@@ -21,7 +21,7 @@ PINS:
 5 GPIO0 (25) - low an reset for flash
 6 RST (3) 
 
-Flash via USB2Serial with file "SmallTVCOS.ino.merged.bin"
+Flash via USB2Serial with file "SmallTVCOS_Vxxx_paritions.bin"
 
 
 ## Other Firmware

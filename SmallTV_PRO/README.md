@@ -1,4 +1,4 @@
-# SmallTVCOS V0.1.0 a OpenOn.org project
+# SmallTVCOS a OpenOn.org project
 develop by mk@almi.de based on <a href="https://github.com/mklossde/CmdOs">CmdOS</A>
 
 ![CmdOS LOGO](images/STV_OpenOn3.gif)

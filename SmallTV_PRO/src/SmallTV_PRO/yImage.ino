@@ -79,7 +79,7 @@ void GIFDraw(GIFDRAW *pDraw) {
 /* open gif file */
 void * GIFOpenFile(const char *fname, int32_t *pSize) {  
 //TODO  if(!name.startsWith("/")) { name="/"+name; }
-  f = FILESYSTEM.open(fname);
+  f = FILESYSTEM.open(fname,"r");
   if (!f) { sprintf(buffer,"GIF file missing '%s'",fname);logPrintln(LOG_INFO,buffer); return NULL; }  
 
   //sprintf(buffer,"GIF open %s",fname);logPrintln(LOG_INFO,buffer);

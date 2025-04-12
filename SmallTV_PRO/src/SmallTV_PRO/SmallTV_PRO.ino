@@ -8,8 +8,8 @@
 
 #include <privatdata.h>
 
-const char *prgTitle = "SmallTVCOS";
-const char *prgVersion = "V0.1.0";
+const char *prgTitle = "SmallTVPROCOS";
+const char *prgVersion = "V0.1.1";
 
 const char* user_admin = "admin"; // default user
 char user_pas[]="admin";   // default espPas
