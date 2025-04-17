@@ -16,7 +16,8 @@ public:
     else if(is(prgFile)) { cmdFile(prgFile); }
   }
   void doLoop() {  if(pageLoop!=NULL) { pageLoop(); } }
-  char* toString() { return (char*)pageName; }
+  char* getPageName() { return pageName; }
+  boolean isFile() { return is(prgFile); }
 
   PageFunc() { pageSetup = NULL; pageLoop = NULL;  setPageName(NULL); }
   PageFunc(char *file) { pageSetup = NULL; pageLoop = NULL;  setPageName(file); prgFile=file; }
@@ -47,6 +48,8 @@ void pageClear() {
 /* enabel a page by index to display */
 byte pageSet(int page,int refresh) {
   if(page>=0 && page<=250) { 
+    if(pageFunc!=NULL && pageFunc->isFile()) { cmdFile(NULL); } // stop old page 
+
     pageIndex=page;
     if(refresh>0) {  pageRefresh=refresh; } // set page refresh
     else { pageRefresh=pageRefreshDefault; } // reset to default 
@@ -58,12 +61,12 @@ byte pageSet(int page,int refresh) {
 }
 
 /* set page by index or name */
-byte pageSet(char *page,int refresh) {
+byte pageSet(char *page,int refresh) { 
   if(!is(page)) { return pageIndex; }
   if(isInt(page)) { return pageSet(toInt(page),refresh); }
   for(int i=0;i<pages.size();i++) {      
     PageFunc *pageFunc=(PageFunc*)pages.get(i);  
-    if(pageFunc!=NULL && equals(pageFunc->pageName,page)) { return pageSet(i,refresh); }
+    if(pageFunc!=NULL && equals(pageFunc->getPageName(),page)) { return pageSet(i,refresh); }
   }
   sprintf(buffer,"unkown page %s",page); logPrintln(LOG_ERROR,buffer);
   return pageIndex;
@@ -84,7 +87,7 @@ byte pageChange(int pageAdd) {
   byte page=pageIndex+pageAdd;
   if(pageIndex==250) { page=pageAdd; }  
   if(page>=250) { page=pages.size(); }
-  if(page>pages.size()) { page=0; } 
+  if(page>=pages.size()) { page=0; } 
   return pageSet(page,-1);
 }
 
@@ -97,15 +100,20 @@ char* pageList() {
   for(int i=0;i<pages.size();i++) {      
     PageFunc *pageFunc=(PageFunc*)pages.get(i);    
     if(pageFunc!=NULL) {
-      sprintf(buffer+strlen(buffer),"page %i %s\n",i,pageFunc->toString());
+      char *pageName=pageFunc->getPageName();
+      if(!is(pageName)) { pageName="unkow";} 
+      sprintf(buffer+strlen(buffer),"page %d %s\n",i,pageName);
     }   
   }
   return buffer;
 }
 
-char* pageDel(int pageIndex) {
-  pages.del(pageIndex);
-  return EMPTY;
+char* pageDel(int index,int end) {
+  while(true) {  
+    if(index==pageIndex) { pageSet(250,-1); } // del actual => switch off
+    pages.del(index);
+    if(index<end) { index++ } else { return EMPTY; }
+  }  
 }
 
 //--------------------------------------------------------

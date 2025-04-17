@@ -184,7 +184,7 @@ char* matrixCmd(char *cmd, char **param) {
     else if(equals(cmd, "pageNext")) {  int p=pageChange(1);sprintf(buffer,"%d",p); return buffer; }
     else if(equals(cmd, "pageSize")) { return pageSize();  }
     else if(equals(cmd, "pageAdd")) { return pageAdd(cmdParam(param));  }
-    else if(equals(cmd, "pageDel")) { return pageDel(toInt(cmdParam(param)));  }
+    else if(equals(cmd, "pageDel")) { return pageDel(toInt(cmdParam(param)),toInt(cmdParam(param)));  }
     // list pages
     else if(equals(cmd, "pages")) { return pageList();  }
   

@@ -44,4 +44,4 @@ PINS:
 
 
 
-![LOGO](images/CmdOS_logo.gif) a OpenOn.org project - develop by mk@almi.de 
+![LOGO](images/CmdOS_logo.gif) a OpenOn.org project - develop by michael@openon.org 

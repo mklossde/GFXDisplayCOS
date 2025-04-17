@@ -1,5 +1,7 @@
 
 // SmallTV - Esp8266 SmallTV based on GFXDisplayCOS and CmdOS
+// dev by OpenOn.org source from http://github.com/mklossde/GFXDisplayCOS
+
 // CmdOS - http://github.com/mklossde/GFXDisplayCOS
 // CmdOS - http://github.com/mklossde/CmdOs
 

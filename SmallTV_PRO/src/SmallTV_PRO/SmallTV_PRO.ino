@@ -1,6 +1,8 @@
 
-// SmallTVCOS - Esp32 SmallTV based on GFXDisplayCOS and CmdOS
-// CmdOS - http://github.com/mklossde/GFXDisplayCOS
+// SmallTVCOS - Esp32 SmallTV based on GFXDisplayCOS and CmdOS 
+// dev by OpenOn.org source from http://github.com/mklossde/GFXDisplayCOS
+
+// GFXDisplayCOS - http://github.com/mklossde/GFXDisplayCOS
 // CmdOS - http://github.com/mklossde/CmdOs
 
 #include <ESPAsyncWebServer.h>
