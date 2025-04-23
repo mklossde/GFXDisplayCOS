@@ -64,7 +64,7 @@ void matrixWeb(AsyncWebServerRequest *request) {
   if (request->hasParam("drawOff")) {  drawOff();
   }else if (request->hasParam("page")) { 
     String nr=webParam(request,"nr"); 
-    pageSet(nr.toInt(),-1);
+    pageSet(nr.toInt());
   }else if (request->hasParam("pageNext")) { pageChange(+1);  
   }else if (request->hasParam("pagePriv")) { pageChange(-1);  
   }else if (request->hasParam("drawFile")) { 
@@ -189,7 +189,7 @@ char* matrixCmd(char *cmd, char **param) {
     else if(equals(cmd, "pages")) { return pageList();  }
   
     // set "page 1" 
-    else if(equals(cmd, "page")) { int p=pageSet(cmdParam(param),toInt(cmdParam(param))); sprintf(buffer,"%d",p); return buffer; }
+    else if(equals(cmd, "page")) { int p=pageSet(cmdParam(param)); sprintf(buffer,"%d",p); return buffer; }
 
     // drawFile file type x y - draw a gif/icon at x,y
     else if(equals(cmd, "drawFile")) { char *f=cmdParam(param); drawFile(f,f,toInt(cmdParam(param)),toInt(cmdParam(param)),false); return EMPTY; }    

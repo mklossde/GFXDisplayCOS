@@ -73,8 +73,7 @@ void GIFDraw(GIFDRAW *pDraw) {
     }
     if(y==gif.getCanvasHeight()-1) { draw(); }
 //Serial.print("y:");Serial.println(y);    
- } /* GIFDraw() */
-
+ } 
 
 /* open gif file */
 void * GIFOpenFile(const char *fname, int32_t *pSize) {  
@@ -180,7 +179,7 @@ char* uploadFile="/upload_file";
 String URL_FILE="/upload_url";
 
 void drawUrl(String url,int x,int y,boolean direct) {
-  boolean ok=fsDownload(url,URL_FILE);
+  boolean ok=fsDownload(url,url,-1);
   if(ok) { 
     String name=url.substring(url.lastIndexOf('/'));
     drawFile((char*)URL_FILE.c_str(),(char*)name.c_str(),0,0,direct);
@@ -232,7 +231,7 @@ void drawClose() {
 
 /* stop and clear matrix */
 void drawOff() {
-  pageSet(250,-1);
+  pageSet(250);
   drawClose();
 }
 

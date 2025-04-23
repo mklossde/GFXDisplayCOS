@@ -124,6 +124,31 @@ void pageEsp() {
 }
 
 //-------------------------------------------------------------------------
+// PAGE state
+
+char *stateAttr="homeassistant2/switch/tasmota/state";
+
+/* show page state */
+void pageState() {  
+  mqttAttr(stateAttr,true);
+
+  pageClear();
+  drawText(10,10,fontSize,"state",col_red);
+
+  if(is(stateAttr)) { 
+    char *val=attrGet(stateAttr);
+    drawText(10,30,fontSize,stateAttr,col_red);
+    drawText(10,100,fontSize,val,col_green);
+  }
+
+  draw();  
+}
+
+void pageStateLoop() {
+  pageState();
+}
+
+//-------------------------------------------------------------------------
 // PAGE TIME
 
 void pageTimeDraw() {
@@ -178,15 +203,16 @@ void pageGifLoop() {
 //-----------------------------------------------------------
 
 void displayPageSetup() {
-  pages.add(new PageFunc("title",pageTitle,NULL));
-  pages.add(new PageFunc("esp",pageEsp,NULL));
+  pages.add(new PageFunc("title",pageTitle,NULL,10000));
+  pages.add(new PageFunc("esp",pageEsp,NULL,10000));
 //  pages.add(new PageFunc("test",pageTest,pageTestLoop));
-  pages.add(new PageFunc("time",pageTime,pageTimeLoop));
-  pages.add(new PageFunc("gif",pageGif,pageGifLoop));
+  pages.add(new PageFunc("time",pageTime,pageTimeLoop,500));
+  pages.add(new PageFunc("gif",pageGif,pageGifLoop,60000));
 //  pages.add(new PageFunc(page_cmd,pageCmd,NULL));
+  pages.add(new PageFunc("state",pageState,pageStateLoop,5000));
 
   pageStart();  
-  pageSet(0,-1); 
+  pageSet(0); 
 }
 
 void displayPageLoop() {

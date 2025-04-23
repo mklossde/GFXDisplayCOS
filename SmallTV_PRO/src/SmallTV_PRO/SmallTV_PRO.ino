@@ -16,29 +16,30 @@ const char *prgVersion = "V0.2.0";
 const char* user_admin = "admin"; // default user
 char user_pas[]="admin";   // default espPas
 
-const char *wifi_ssid_default = ""; // PRIVAT_WIFI_SSID; // define in privatdata.h 
-const char *wifi_pas_default = ""; //  PRIVAT_WIFI_PAS;   // define in privatdata.h 
-const char *mqtt_default = ""; //PRIVAT_MQTTSERVER;     // define in privatdata.h 
+const char *wifi_ssid_default = PRIVAT_WIFI_SSID; // define in privatdata.h 
+const char *wifi_pas_default = PRIVAT_WIFI_PAS;   // define in privatdata.h 
+const char *mqtt_default = PRIVAT_MQTTSERVER;     // define in privatdata.h 
 
-byte MODE_DEFAULT=21; // normal=21=MODE_WIFI_CL_TRY /
-//byte MODE_DEFAULT=20; //  MODE_PRIVAT=20=load privat values, use wifi_ssid_default and wifi_pas_default and mqtt_default
+//byte MODE_DEFAULT=21; // normal=21=MODE_WIFI_CL_TRY /
+byte MODE_DEFAULT=20; //  MODE_PRIVAT=20=load privat values, use wifi_ssid_default and wifi_pas_default and mqtt_default
 //byte MODE_DEFAULT=0; // EE_MODE_FIRST=0=RESET on start
 
-
 boolean serialEnable=true; // enable/disbale serial log 
-boolean cmdEnable=true; // enable/disbale serial log 
 
 boolean wifiEnable=true;  // enable/disbale wifi
-boolean ntpEnable=true; // enable time server
 boolean webEnable=true;    // enable/disbale http server
 boolean mdnsEnable=false;   // enable/disable mDNS detection 
 boolean bootSafe=false;    // enable/disbale boot safe
 
+#define ntpEnable false     // enable time server
 #define enableFs true         // enable fs / SPIFFS
 
-#define netEnable true       // enable/disbale network ping/dns/HttpCLient 
+#define netEnable false       // enable/disbale network ping/dns/HttpCLient 
 #define webSerialEnable false // enable/disbale web serial
-#define mqttEnable false      // enable/disbale mqtt
+#define mqttEnable true      // enable/disbale mqtt
+#define mqttDiscovery true   // enable mqtt Homeassistant Discovery  
+boolean mqttCmdEnable=true;  // enable mqtt sedn/receive cmd
+boolean mqttLogEnable=false;  // enable mqtt send log
 
 #define otaEnable false        // enabled/disbale ota update 
 #define updateEnable false     // enabled/disbale update firmware via web 

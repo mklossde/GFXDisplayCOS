@@ -1,4 +1,8 @@
 
+//----------------------------------------------------
+// GFXDisplaCOS
+const char *GFXDisplaCOSVersion = "V0.3.0";
+
 #include <Arduino.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_ST7789.h>
@@ -33,9 +37,10 @@ int pixelY=240;
 // display store structur
 typedef struct {
   int pX=pixelX;
-  int pY=pixelY;
-  int mode=SPI_MODE3;
+  int pY=pixelY;  
+  char type[10]="ST7789";
   char pins[64]="18,23,2,4,-1,25";
+  int mode=SPI_MODE3;
   byte brightness=90;
   byte panelChain=1;
   byte rotation=2;

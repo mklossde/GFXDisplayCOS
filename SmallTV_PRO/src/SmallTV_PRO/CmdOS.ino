@@ -1,4 +1,7 @@
 
+// CmdOS 
+// dev by OpenOn.org source from http://github.com/mklossde/CmdOS
+
 #ifdef ESP32
   #include <WiFi.h>
 #elif defined(ESP8266)
@@ -12,7 +15,7 @@
 #include <time.h>         // time 
 #include <sys/time.h>     // time
 
-/* cmdOS from openON.org develop by mk@almi.de */
+/* cmdOS by michael@OpenON.org */
 const char *cmdOS="V.0.3.0";
 char *APP_NAME_PREFIX="CmdOs";
  
@@ -21,6 +24,8 @@ String appIP="";
 
 /* on init auto find wifi set_up (password set_up) and connect */
 #define wifi_setup "set_up"
+
+long freeHeapMax;
 
 //-----------------------------------------------------------------------------
 // new [] => delete[]
@@ -51,7 +56,8 @@ String appIP="";
 #define ACCESS_ADMIN 1 // admin function 
 #define ACCESS_CHANGE 2 // user function 
 #define ACCESS_READ 3 // info function 
-#define ACCESS_ALL 4 // general function
+#define ACCESS_USE 5 // user function 
+#define ACCESS_ALL 10 // general function
 
 /* log Level */
 #define LOG_SYSTEM 0
@@ -216,6 +222,26 @@ public:
 MapList attrMap(true); 
 
 //-----------------------------------------------------------------------------
+
+/* concat char to new char*, use NULL as END, (e.g char *res=concat("one","two",NULL); ), dont forget to free(res); */
+char* concat(char* first, ...) {
+    size_t total_len = 0;
+
+    va_list args;
+    va_start(args, first);
+    size_t l=0;
+    for (char* s = first; s != NULL && (l=strlen(s))>0; s = va_arg(args, char*)) {  total_len += l;  }
+    va_end(args);
+
+    char *result = (char*)malloc(sizeof(char) *(total_len + 1)); // +1 for null terminator
+    if (!result) return NULL;
+    result[0] = '\0'; // initialize empty string
+
+    va_start(args, first);
+    for (char* s = first; s != NULL; s = va_arg(args, char*)) { strcat(result, s); }
+    va_end(args);
+    return result;
+}
 
 /* copy org* to new (NEW CHAR[]
     e.g. char* n=copy(old); 
@@ -630,7 +656,7 @@ void logPrintln(int level,const char *text) {
   if(level>logLevel || !is(text)) { return ; }
   if(serialEnable) { Serial.println(text); } 
   if(webEnable) { webLogLn(toString(text)); }
-  if(mqttEnable) { mqttLog((char*)text); }
+  if(mqttLogEnable) { mqttLog((char*)text); }
 }
 
 /* log with lvel and string 
@@ -641,7 +667,7 @@ void logPrintln(int level,String text) {
   const char* log=text.c_str();
   if(serialEnable) { Serial.println(log); } 
   if(webEnable) { webLogLn(text); }
-  if(mqttEnable) { mqttLog((char*)log); }
+  if(mqttLogEnable) { mqttLog((char*)log); }
 }
 
 /* set actual logLevel - log this level and above
@@ -826,6 +852,7 @@ char* setLogLevel(int level) {
         if(count--<=0) { 
           if(type<=0) { sprintf(buffer,"%s",(char*)file.c_str()); return buffer;  }
           else if(type==1) { sprintf(buffer,"%d",foundfile.size()); return buffer;  }
+//          else if(type==2) { sprintf(buffer,"%d",foundfile.date()); return buffer;  }
           else { return "unkown type"; }
         }
       }
@@ -853,12 +880,17 @@ char* setLogLevel(int level) {
   #endif
 
     // e.g. https://www.w3.org/Icons/64x64/home.gif
-    char* fsDownload(String url,String name) {
+    char* fsDownload(String url,String name,int reload) {
       if(!is(url,0,250)) { return "missing url"; }
 
       HTTPClient http;
       if(name==NULL) { name=url.substring(url.lastIndexOf('/')); }
       if(!name.startsWith("/")) { name="/"+name; }
+
+      // check redownload 
+      if(fsSize(name)!=-1) {
+        if(reload==-1) { sprintf(buffer,"download foundOld '%s'",name); return buffer; }
+      }
 
       #ifdef ESP32
         http.begin(url); 
@@ -920,7 +952,7 @@ char* setLogLevel(int level) {
     }
 
   #else 
-    char* fsDownload(String url,String name) { return EMPTY; }
+    char* fsDownload(String url,String name,int reload) { return EMPTY; }
     char* rest(String url) { return EMPTY; }  
   #endif
 
@@ -964,13 +996,12 @@ void fsSetup() {
   int fsSize(String file) { return -1; }
   void fsCat(String file) {}
   char* fsDir() { return "fs not implemented";}  
-  char* fsDownload(String url,String name) { return "fs not implemented"; }
+  char* fsDownload(String url,String name,int reaload) { return "fs not implemented"; }
   char* rest(String url) { return "fs not implemented"; }  
   char* fsToSize(const size_t bytes) { return "fs not implemented"; }  
   void fsSetup() {}
   void fsFormat() {}
 #endif
-
 
 //-------------------------------------------------------------------------------------------------------------------
 // LED
@@ -1354,7 +1385,6 @@ char* swInit(int pin, boolean on, byte mode, int timeBase, byte tickShort, byte 
 }
 
 #endif
-
 /*
  * Wifi
  */
@@ -1463,11 +1493,11 @@ void setMode(byte mode) {
 /* set default values */
 void eeDefault() {
   uint32_t chipid=espChipId(); // or use WiFi.macAddress() ?
-  if(!is(eeBoot.espName) || MODE_DEFAULT==EE_MODE_PRIVAT) { snprintf(eeBoot.espName,20, "OpenOs%08X",chipid);  }
+  if(!is(eeBoot.espName) || MODE_DEFAULT==EE_MODE_PRIVAT) { snprintf(eeBoot.espName,20, "CmdOs%08X",chipid);  }
   if((!is(eeBoot.espPas) || MODE_DEFAULT==EE_MODE_PRIVAT)) { sprintf(eeBoot.espPas,user_pas); }     // my private esp password   
   if(!is(eeBoot.wifi_ssid) || MODE_DEFAULT==EE_MODE_PRIVAT) {sprintf(eeBoot.wifi_ssid,wifi_ssid_default); } // my privat WIFI SSID of AccessPoint
   if(!is(eeBoot.wifi_pas) || MODE_DEFAULT==EE_MODE_PRIVAT) {sprintf(eeBoot.wifi_pas,wifi_pas_default); } // my privat WIFI SSID of AccessPoint
-  if(!is(eeBoot.mqtt) || MODE_DEFAULT==EE_MODE_PRIVAT) {sprintf(eeBoot.mqtt,mqtt_default); }           // my privat MQTT server
+  if(!is(eeBoot.mqtt) || MODE_DEFAULT==EE_MODE_PRIVAT) {sprintf(eeBoot.mqtt,mqtt_default); }           // my privat MQTT server 
 }
 
 /* on first start prg */
@@ -1576,8 +1606,7 @@ void bootRead() {
   }    
 
   sprintf(buffer,"EEPROM boot read mode:%d timestamp:%d espName:%s wifi_ssid:%s",eeMode,eeBoot.timestamp,eeBoot.espName,eeBoot.wifi_ssid); logPrintln(LOG_SYSTEM,buffer); 
-  logPrintln(LOG_SYSTEM,bootInfo());
-  mqttSetUrl(eeBoot.mqtt);  // set mqtt
+  logPrintln(LOG_SYSTEM,bootInfo());  
   if(!is(eeBoot.espPas)) { setAccess(ACCESS_ADMIN); } // without espApd admin=true
   ledBlink(1,100); // OK => direct blink 1x100ms
 }
@@ -1818,7 +1847,7 @@ void sleep(byte mode,long sleepTimeMS) { //10e3=10s
 
 void sleep(char* sleepMode,char *sleepTimeMS) {
   byte m=atoi(sleepMode); int s=atoi(sleepTimeMS);
-  sprintf(buffer,"SLEEP %d %d",m,s);logPrintln(LOG_DEBUG,buffer);
+  sprintf(buffer,"SLEEP %d %d",m,s);logPrintln(LOG_INFO,buffer);
   sleep(m,(long)s);
 }
  
@@ -2207,7 +2236,6 @@ void otaLoop() {
   void otaLoop() {}
 #endif
 
-
 #if mqttEnable
 
 // MQTT
@@ -2227,15 +2255,22 @@ int mqttPort;
 char* mqttUser;
 char* mqttPas;
 
-char* mqttCmdTopic; // topic for cmd messages (e.g. device/esp/EspBoot00DC9235/cmd)
-char* mqttResponseTopic; // topic for resposne of cmd messages (e.g. device/esp/EspBoot00DC9235/result) 
+
+char *mqttTopicOnline;   // topic device online/offline
+char *mqttTopicStat;    // topic to send status of entitys
+char *mqttTopicReceive; // topic path of all commands (e.g. device/esp/EspBoot00DC9235/control)
+
+char* mqttTopicCmd=NULL; // topic for cmd messages (e.g. device/esp/EspBoot00DC9235/control/cmd)
+char* mqttTopicResponse=NULL; // topic for resposne of cmd messages (e.g. device/esp/EspBoot00DC9235/stat_cmd) 
 
 WiFiClient *mqttWifiClient=NULL;
 #ifdef ESP32
-  WiFiClientSecure *mqttClientSSL=NULL; // WiFiClientSecure / NetworkClientSecure
+  #include <NetworkClientSecure.h>
+  NetworkClientSecure *mqttClientSSL=NULL; // WiFiClientSecure / NetworkClientSecure
 #elif defined(ESP8266)
+  #include <WiFiClientSecure.h>
   WiFiClientSecure *mqttClientSSL=NULL; // WiFiClientSecure / NetworkClientSecure
-#endif   
+#endif    
 
 PubSubClient *mqttClient=NULL;
 
@@ -2295,42 +2330,42 @@ char* mqttSet(char* mqtt) {
 //-------------------------------------------------------------------------------------
 // publish messages
 
+/* publich log to mqtt */
 void mqttLog(char *message) {
   if(eeBoot.mqttLogEnable) {
       if (mqttStatus != 2) { return ; }
-      sprintf(mqttTopic,"%s/%s%/log",mqttPrefix,mqttClientName);
+      sprintf(mqttTopic,"%slog",mqttTopicStat);
       mqttClient->publish(mqttTopic, message);
   }
 }
 
+/*
 void publishValueMessage(char *name,char *message) {
-  if (mqttStatus != 2) { return ; }
+  if (mqttStatus != 2) { return ; }  
   sprintf(mqttTopic,"%s/%s%/value/%s",mqttPrefix,mqttClientName,name);
   boolean ok=mqttClient->publish(mqttTopic, message);
   sprintf(buffer,"MQTT publish %s => %s ok:%d", mqttTopic,message,ok);  logPrintln(LOG_DEBUG,buffer);
 }
+
 
 void publishValue(char *key,char *value) {
 //  sprintf(message,"{\"%s\":\"%s\"}",key,value);  
 //  publishStatus(message);
   publishValueMessage(key,to(value));
 }
+*/
 
+/*
 void publishResponse(char *id,char *result) {
   if (mqttStatus != 2) { return ; }
   if(result!=NULL && sizeof(result)>0) {
     if(id!=NULL) { sprintf(mqttMessage,"%s:%s", id,result); }
     else { sprintf(mqttMessage,result); }
-    boolean ok=mqttClient->publish(mqttResponseTopic, mqttMessage);
-    sprintf(buffer,"MQTT publish %s => %s ok:%d", mqttResponseTopic,mqttMessage,ok);  logPrintln(LOG_DEBUG,buffer);
+    boolean ok=mqttClient->publish(mqttTopicResponse, mqttMessage);
+    sprintf(buffer,"MQTT publish %s => %s ok:%d", mqttTopicResponse,mqttMessage,ok);  logPrintln(LOG_DEBUG,buffer);
   }
 }
-
-void publishTopic(char* topic,char *message) {
-  if (mqttStatus != 2) { return ; }
-  boolean ok=mqttClient->publish(topic, message);
-  sprintf(buffer,"MQTT publish %s => %s ok:%d", mqttTopic,message,ok);  logPrintln(LOG_DEBUG,buffer);
-}
+*/
 
 /** subcribe topic to attr **/
 void mqttAttr(char *topic,boolean on) {
@@ -2347,33 +2382,104 @@ void mqttAttr(char *topic,boolean on) {
   } 
 }
 
+//-----------------------------------------------------
+
+/* publish a maessage */
+boolean mqttPublish(char* topic,char *message) {
+  if (mqttStatus != 2) { return false; }
+  boolean ok=mqttClient->publish(topic, message);  
+  if(!ok) { sprintf(buffer,"MQTT publish ERROR %s len:%d",topic,strlen(message));logPrintln(LOG_ERROR,buffer); }
+  else { 
+//Serial.print(topic); Serial.print("=");Serial.println(message); Serial.print(" len:");Serial.println(strlen(message));
+    sprintf(buffer,"MQTT publish %s",topic); logPrintln(LOG_DEBUG,buffer);
+  }
+  return ok;
+}
+
+/* subscibe a topic */
+boolean mqttSubscribe(char *topic) {
+    if (mqttStatus != 2) { return false; }
+    boolean ok=mqttClient->subscribe(topic); // subscribe cmd topic           
+    if(!ok) { sprintf(buffer,"MQTT subscribe ERROR %s",topic);logPrintln(LOG_ERROR,buffer); }
+    else { sprintf(buffer,"MQTT subscribe %s ok:%d", topic,ok); logPrintln(LOG_INFO,buffer); }
+    return ok;
+}
+
+//-----------------------------------------------------
+
+void mqttPublishState(char *name,char *message) {
+  if(!is(message) ||  mqttStatus != 2) { return ; }
+  char *espStat=concat(mqttTopicStat,name,NULL);
+  mqttPublish(espStat,message);  
+  free(espStat);
+}
+
 //-------------------------------------------------------------------------------------
 // Receive messages
 
 void mqttReceive(char* topic, byte* payload, unsigned int length) {  
-  if (strcmp(topic,mqttCmdTopic) == 0) {    
+
+  if (mqttCmdEnable && strcmp(topic,mqttTopicCmd) == 0) {    
     char *msg=copy(NULL,(char*)payload,length);
     sprintf(buffer,"MQTT cmd '%s' %s %d", topic, msg,length); logPrintln(LOG_DEBUG,buffer);
     char *result=cmdLine(msg); 
     free(msg);
-    if(result!=NULL) {
-      char *id=NULL;    
-      publishResponse(id,result);
-    }
+    mqttPublishState("cmd",result);
 
   } else if(attrMap.find(topic)!=-1) { 
     attrMap.replace(topic,(char*)payload,length);
     sprintf(buffer,"MQTT attrSet '%s'", topic); logPrintln(LOG_DEBUG,buffer);
 
+  #if mqttDiscovery  
+  } else if (strcmp(topic,mqttTopicReceive) == 0) { 
+      char *msg=copy(NULL,(char*)payload,length);
+
+      sprintf(buffer,"MQTT HA '%s'=%s", topic,msg); logPrintln(LOG_DEBUG,buffer);
+      //char *result=cmdLine(msg); 
+      //if(result!=NULL) { mqttPublish(mqttTopicStat,result); }
+      free(msg);
+  #endif
+
   } else { sprintf(buffer,"MQTT unkown topic '%s'", topic); logPrintln(LOG_DEBUG,buffer);}
 
 }
+
+
+
+//-------------------------------------------------------
+
+#if mqttDiscovery
+
+/* auto discover this as a light in HomeAssistant */
+void mqttDiscover(char *type,char *name,boolean receiveOn) { 
+    char *espStat=concat(mqttTopicStat,name,NULL);
+    logPrintln(LOG_DEBUG,espStat);  
+    char *topic=concat("homeassistant/",type,"/CmdOS/",eeBoot.espName,"/config",NULL);
+
+    uint32_t chipid=espChipId();
+    sprintf(buffer,"{\"name\":\"%s_%s\",\"uniq_id\":\"CmdOs%08X_%s\",\"avty_t\":\"%s\",\"stat_t\":\"%s\"",eeBoot.espName,name,chipid,name,mqttTopicOnline,espStat);
+    if(receiveOn) { 
+      char *espCmd=concat(mqttTopicReceive,name,NULL); 
+      sprintf(buffer+strlen(buffer),",\"cmd_t\":\"%s\"",espCmd);
+      free(espCmd);
+    }
+    sprintf(buffer+strlen(buffer),",\"dev\":{\"name\":\"%s\",\"ids\":\"CmdOs%08X\",\"configuration_url\":\"http://%s\",\"mf\":\"%s\",\"mdl\":\"%s\",\"sw\":\"%s\"}",eeBoot.espName,chipid,appIP.c_str(),APP_NAME_PREFIX,prgTitle,prgVersion);
+    sprintf(buffer+strlen(buffer),"}");
+    mqttPublish(topic,buffer);
+    free(topic); free(espStat);
+
+//    mqttPublish(mqttTopicStat, "");        // state        
+}
+
+#endif
 
 //-------------------------------------------------------
 
 boolean mqttRunning=false;
 
 void mqttInit() {
+  if(MODE_DEFAULT==EE_MODE_PRIVAT) { mqttSetUrl((char*)mqtt_default); } // my privat MQTT server)
+  else if(!is(mqttServer) && is(eeBoot.mqtt)) { mqttSetUrl(eeBoot.mqtt);  }// set mqtt
   mqttClientName=eeBoot.espName;
 
   if(!is(mqttServer)) { logPrintln(LOG_SYSTEM,"MQTT error - mqttServer missing");  mqttConFail=3; return ; }  
@@ -2385,18 +2491,23 @@ void mqttInit() {
     mqttClient=new PubSubClient(*mqttWifiClient);
   }else {
     #ifdef ESP32
-      mqttClientSSL=new WiFiClientSecure();  
+      mqttClientSSL=new NetworkClientSecure();  
     #elif defined(ESP8266)
       mqttClientSSL=new WiFiClientSecure();  
     #endif    
     mqttClient=new PubSubClient(*mqttClientSSL);
   }  
 
+  mqttTopicOnline=concat(mqttPrefix,"/",eeBoot.espName,"/online",NULL); // availability/online
+  mqttTopicStat=concat(mqttPrefix,"/",eeBoot.espName,"/stat_",NULL); 
+  mqttTopicReceive=concat(mqttPrefix,"/",eeBoot.espName,"/control/",NULL);
+
+  mqttClient->setBufferSize(512); // extends mqtt message size
   mqttClient->setCallback(mqttReceive);     
   mqttClient->setServer(mqttServer, mqttPort);
 
-  mqttCmdTopic = copy(to(mqttPrefix, "/", mqttClientName, "/cmd"));
-  mqttResponseTopic = copy(to(mqttPrefix, "/", mqttClientName, "/result"));
+  mqttTopicCmd =concat(mqttTopicReceive,"cmd",NULL);
+  mqttTopicResponse =concat(mqttTopicStat,"cmd",NULL);
 
   mqttRunning=true;
   *mqttTime=0; // start conection now
@@ -2407,16 +2518,25 @@ void mqttInit() {
   }
 }
 
+
 void mqttConnect() {    
     sprintf(buffer,"MQTT connecting... %s => %s", mqttClientName, mqttServer); logPrintln(LOG_DEBUG,buffer);    
-    if (mqttClient->connect(mqttClientName,mqttUser,mqttPas)) { // cennect 
+
+    if (mqttClient->connect(mqttClientName,mqttUser,mqttPas,mqttTopicOnline, 0, true, "offline")) { // cennect with user and last will availability="offline"
       sprintf(buffer,"MQTT connected %s => %s", mqttClientName, mqttServer); logPrintln(LOG_INFO,buffer); 
 
-
-      boolean ok=mqttClient->subscribe(mqttCmdTopic); // subscribe cmd topic   
-      sprintf(buffer,"MQTT subscribe %s ok:%d", mqttCmdTopic,ok); logPrintln(LOG_INFO,buffer);
       mqttStatus = 2;     
-      publishValue("status","connect");        
+//      publishValue("status","connect");        
+      
+      char *cmdTopic=concat(mqttTopicReceive,"+",NULL); mqttSubscribe(cmdTopic); free(cmdTopic); // subscibe all cmds
+
+      #if mqttDiscovery
+        mqttDiscover("notify","state",false); // send mqtt homaAssistant state online Discover
+        mqttDiscover("text","cmd",mqttCmdEnable); // send mqtt homaAssistant Discover
+        mqttPublishState("state", "on");                   // discovery state
+      #endif
+
+      mqttClient->publish(mqttTopicOnline, "online");    // availability  online/offline
       mqttConFail=0;   // connected => reset fail
 
     } else {
@@ -2428,7 +2548,8 @@ void mqttConnect() {
 
 void mqttDisconnect() { 
   if(mqttClient!=NULL && mqttClient->connected()) {
-    publishValue("status","disconnect");
+    mqttClient->publish(mqttTopicOnline, "offline");    // availability  online/offline
+//    publishValue("status","disconnect");
     mqttClient->disconnect();     
   }
   mqttClient=NULL;
@@ -2464,20 +2585,19 @@ void mqttLoop() {
   void mqttOpen(boolean on) {}
   void mqttInit() {}
   void mqttDisconnect() { }
-  char* mqttSet(char* mqtt) { return NULL; }
+  char* mqttSet(char* mqtt) { return "MQTT disabled"; }
   void mqttSetup() {}
   void mqttLoop() {}
   void mqttLog(char *message) {}
-  void publishTopic(char* topic,char *message) {} 
+  boolean mqttPublish(char* topic,char *message) {} 
   void mqttAttr(char *topic,boolean on) {}
 #endif
-
 
 #include <Arduino.h>
 #ifdef ESP32
 //  #include <WiFi.h>  
   #include <AsyncTCP.h>
-  #include <ESPmDNS.h>
+#include <ESPmDNS.h>
 #elif defined(ESP8266)
 //  #include <ESP8266WiFi.h>
   #include <ESPAsyncTCP.h>
@@ -2646,7 +2766,7 @@ void webFileManager(AsyncWebServerRequest *request) {
     if(request->hasParam("doSaveAndRun")) { cmdFile((char*)webParam(request,"name").c_str()); }
     webFileManagerEd(request, webParam(request,"name")); return;
   }
-  else if (request->hasParam("doUploadUrl")) { message=fsDownload(webParam(request,"url"), webParam(request,"name"));  }
+  else if (request->hasParam("doUploadUrl")) { message=fsDownload(webParam(request,"url"), webParam(request,"name"),-1);  }
 
   String html = "";
   html = pageHead(html, "File Manager");
@@ -3057,7 +3177,6 @@ void webStart(boolean on) {
   webSetup();
 }
 
-
 // Serial Command Line
 
 unsigned long *cmdTime = new unsigned long(0);
@@ -3171,9 +3290,9 @@ char* cmdExec(char *cmd, char **param) {
   else if(equals(cmd, "dns")) {  ret=netDns(cmdParam(param)); }         // wifi dns resolve (e.g. "dns web.de")
    
   else if(equals(cmd, "mqttLog") && isAccess(ACCESS_READ)) { eeBoot.mqttLogEnable=toBoolean(cmdParam(param));   } // enable/disbale mqttLog
-  else if(equals(cmd,"mqttSend") && isAccess(ACCESS_CHANGE)) { publishTopic(cmdParam(param),cmdParam(param));  } // mqtt send topic MESSAGE
+  else if(equals(cmd, "mqttPublish") && isAccess(ACCESS_USE)) { mqttPublish(cmdParam(param),cmdParam(param));  } // mqtt send topic MESSAGE
   else if(equals(cmd, "mqttConnect") && isAccess(ACCESS_READ)) { mqttOpen(toBoolean(cmdParam(param)));  }
-  else if(equals(cmd, "mqttAttr") && isAccess(ACCESS_READ)) { mqttAttr(cmdParam(param),toBoolean(cmdParam(param)));  }
+  else if(equals(cmd, "mqttAttr") && isAccess(ACCESS_USE)) { mqttAttr(cmdParam(param),toBoolean(cmdParam(param)));  }
   else if(equals(cmd, "mqtt")) { ret=mqttSet(cmdParam(param));  }      // set mqtt (e.g. "mqtt" or "mqtt mqtt://admin:pas@192.168.1.1:1833") 
 
   else if(equals(cmd, "run")) { ret=cmdFile(cmdParam(param)); } // run prg from file 
@@ -3184,32 +3303,32 @@ char* cmdExec(char *cmd, char **param) {
 //  else if(equals(cmd, "error")) { cmdError(cmdParam(param));  }// end prg with error
   else if(equals(cmd, "error")) { cmdError(paramToLine(*param));  }// end prg with error
 
-  else if(equals(cmd, "fsDir") && isAccess(ACCESS_READ)) { ret=fsDir(toString(cmdParam(param))); }
-  else if(equals(cmd, "fsDirSize") && isAccess(ACCESS_READ)) { int count=fsDirSize(toString(cmdParam(param))); sprintf(buffer,"%d",count); ret=buffer; }
-  else if(equals(cmd, "fsFile") && isAccess(ACCESS_READ)) { ret=fsFile(toString(cmdParam(param)),toInt(cmdParam(param)),toInt(cmdParam(param))); }
+  else if(equals(cmd, "fsDir") && isAccess(ACCESS_USE)) { ret=fsDir(toString(cmdParam(param))); }
+  else if(equals(cmd, "fsDirSize") && isAccess(ACCESS_USE)) { int count=fsDirSize(toString(cmdParam(param))); sprintf(buffer,"%d",count); ret=buffer; }
+  else if(equals(cmd, "fsFile") && isAccess(ACCESS_USE)) { ret=fsFile(toString(cmdParam(param)),toInt(cmdParam(param)),toInt(cmdParam(param))); }
   else if(equals(cmd, "fsCat") && isAccess(ACCESS_READ)) { fsCat(toString(cmdParam(param)));  }
   else if(equals(cmd, "fsWrite") && isAccess(ACCESS_CHANGE) ) { boolean ok=fsWrite(toString(cmdParam(param)),cmdParam(param)); }
   else if(equals(cmd, "fsDel") && isAccess(ACCESS_CHANGE)) { fsDelete(toString(cmdParam(param))); }
   else if(equals(cmd, "fsRen") && isAccess(ACCESS_CHANGE)) { fsRename(toString(cmdParam(param)),toString(cmdParam(param)));  }  
   else if(equals(cmd, "fsFormat") && isAccess(ACCESS_ADMIN)) { fsFormat();  }
 
-  else if(equals(cmd, "fsDownload") && isAccess(ACCESS_CHANGE)) { ret=fsDownload(toString(cmdParam(param)),toString(cmdParam(param))); }
-  else if(equals(cmd, "rest")) { ret=rest(cmdParam(param)); } // 
-  else if(equals(cmd, "cmdRest")) { ret=cmdRest(cmdParam(param)); } // call http/rest and exute retur nbody as cmd
+  else if(equals(cmd, "fsDownload") && isAccess(ACCESS_CHANGE)) { ret=fsDownload(toString(cmdParam(param)),toString(cmdParam(param)),toInt(cmdParam(param))); }
+  else if(equals(cmd, "rest") && isAccess(ACCESS_USE)) { ret=rest(cmdParam(param)); } // 
+  else if(equals(cmd, "cmdRest") && isAccess(ACCESS_USE)) { ret=cmdRest(cmdParam(param)); } // call http/rest and exute retur nbody as cmd
 
   else if(equals(cmd, "ledInit") && isAccess(ACCESS_ADMIN)) { ret=ledInit(toInt(cmdParam(param)),toBoolean(cmdParam(param))); } 
-  else if(equals(cmd, "led") && isAccess(ACCESS_CHANGE)) { ret=ledSwitch(cmdParam(param),cmdParam(param)); }
+  else if(equals(cmd, "led") && isAccess(ACCESS_USE)) { ret=ledSwitch(cmdParam(param),cmdParam(param)); }
   else if(equals(cmd, "swInit") && isAccess(ACCESS_ADMIN)) { ret=swInit(toInt(cmdParam(param)),toInt(cmdParam(param)),toInt(cmdParam(param)),toInt(cmdParam(param)),toInt(cmdParam(param)),toInt(cmdParam(param))); } //
-  else if(equals(cmd, "swCmd") && isAccess(ACCESS_ADMIN)) { ret=swCmd(toInt(cmdParam(param)),cmdParam(param)); }
+  else if(equals(cmd, "swCmd") && isAccess(ACCESS_USE)) { ret=swCmd(toInt(cmdParam(param)),cmdParam(param)); }
 
   // timer 1 0 -1 -1 -1 -1 -1 "drawLine 0 0 20 20 888"
-  else if(equals(cmd, "timer") && isAccess(ACCESS_CHANGE)) { timerAdd(toBoolean(cmdParam(param)),toInt(cmdParam(param)),toInt(cmdParam(param)),toInt(cmdParam(param)),toInt(cmdParam(param)),toInt(cmdParam(param)),toInt(cmdParam(param)),cmdParam(param));  }
-  else if(equals(cmd, "timerDel") && isAccess(ACCESS_CHANGE)) { timerDel(toInt(cmdParam(param)));  }
-  else if(equals(cmd, "timerGet") && isAccess(ACCESS_READ)) { 
+  else if(equals(cmd, "timer") && isAccess(ACCESS_USE)) { timerAdd(toBoolean(cmdParam(param)),toInt(cmdParam(param)),toInt(cmdParam(param)),toInt(cmdParam(param)),toInt(cmdParam(param)),toInt(cmdParam(param)),toInt(cmdParam(param)),cmdParam(param));  }
+  else if(equals(cmd, "timerDel") && isAccess(ACCESS_USE)) { timerDel(toInt(cmdParam(param)));  }
+  else if(equals(cmd, "timerGet") && isAccess(ACCESS_USE)) { 
       MyEventTimer* timer=(MyEventTimer*)eventList.get(toInt(cmdParam(param))); 
       if(timer!=NULL) { ret=timer->info(); } 
     }
-  else if(equals(cmd, "timers") && isAccess(ACCESS_READ)) { timerLog();  }
+  else if(equals(cmd, "timers") && isAccess(ACCESS_USE)) { timerLog();  }
 
   else { ret=appCmd(cmd,param); }
 
@@ -3724,6 +3843,7 @@ void cmdOSSetup() {
     delay(1); Serial.begin(115200); 
     delay(1); Serial.println("----------------------------------------------------------------------------------------------------------------------");
   }
+  freeHeapMax=ESP.getFreeHeap(); // remeber max freeHeap
   eeSetup();
   ledSetup();  
   swSetup(); 
@@ -3762,6 +3882,10 @@ void cmdOSLoop() {
   }
   delay(0);
 }
+
+
+
+
 
 
 
