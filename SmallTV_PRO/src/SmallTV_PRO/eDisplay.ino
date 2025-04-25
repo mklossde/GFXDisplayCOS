@@ -107,7 +107,7 @@ void bufferClear() {
   } 
 }
 
-/* set Brightness 0-255 **/
+/* set Brightness 0-255 */
 void displayBrightness(int b) {  } 
 char* displayRotation(int r) {  if(r>=0) { tft.setRotation(r); } sprintf(buffer,"%d",tft.getRotation()); return buffer; } 
 

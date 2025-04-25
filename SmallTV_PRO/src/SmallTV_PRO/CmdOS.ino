@@ -65,10 +65,10 @@ long freeHeapMax;
 #define LOG_INFO 5
 #define LOG_DEBUG 10
 
-/** actual log level **/
+/* actual log level */
 byte logLevel=LOG_INFO;
 
-/** do have access */
+/* do have access */
 bool isAccess(int requireLevel);
 
 //-----------------------------------------------------------------------------
@@ -97,6 +97,11 @@ static char* paramBuffer=new char[paramBufferMax]; // buffer for params
 
 static String EMPTYSTRING="";
 //static String NOT_IMPLEMENTED="NOT IMPLEMENTED";
+
+//-------------------------------------------------------------------------------------------------------------------
+#define maxInData 150 // max line length
+char inData [maxInData]; // read buffer
+char inIndex = 0; // read index
 
 //-------------------------------------------------------------------------------------------------------------------
 //  List
@@ -162,7 +167,8 @@ public:
     if(index>=0) { void* old=_array[index]; _array[index]=obj; return old; } // overwrite 
     else {
       if(_index>=_max) { grow(1); } 
-      _key[_index]=copy(key); _array[_index]=obj; _index++;return NULL;
+      char *k=copy(key); _key[_index]=k; _array[_index]=obj; _index++;        
+      return NULL;
     }
   }  
   /* get key at index e.g. char *key=list.key(0); */
@@ -189,7 +195,6 @@ public:
   /* add object to list e.g. list.add(obj); */
   void add(void *obj) { if(_index>=_max) { grow(1); } _array[_index++]=obj; } 
   void addIndex(int index,void *obj) { 
-//    if(index>=_max) { grow(index-_max+1); } 
     if(index>=_max) { growTo(index+1,NULL); }     
     _array[index]=obj; if(index>=_index) { _index=index+1; } } 
   /* get obejct at index e.g. char* value=(char*)list.get(0); */
@@ -219,7 +224,6 @@ public:
 
 };
 
-MapList attrMap(true); 
 
 //-----------------------------------------------------------------------------
 
@@ -324,7 +328,7 @@ boolean startWith(char *str,char *find) {
   return true;
 }
 
-/** extract from src (NEW char[]) */
+/* extract from src (NEW char[]) */
 char* extract(char *start, char *end, char *src) {
     const char *start_ptr = strstr(src, start); if (!start_ptr) { return NULL; }
     start_ptr += strlen(start);  // Move past 'start'
@@ -338,18 +342,13 @@ char* extract(char *start, char *end, char *src) {
 /* validate is cstr equals to find  
     e.g. if(equals(cmd,"stat")) */
 boolean equals(char *str,char *find) {
-//sprintf(buffer,"equals '%s' '%s' ",to(str),to(find)); logPrintln(LOG_SYSTEM,buffer);
   if(!is(str) || !is(find)) { return false; }
-  int l1=strlen(str); int l2=strlen(find);
-//sprintf(buffer,"equals len '%d' '%d' ",l1,l2); logPrintln(LOG_SYSTEM,buffer);  
+  int l1=strlen(str); int l2=strlen(find); 
   if(l1!=l2) { return false; }
-//  return strcmp(str, find)==0;
-  for(int i=0;i<l2;i++) {  
-//sprintf(buffer,"equals is %d '%s' '%s' => %d",i,str,find,(*str==*find)); logPrintln(LOG_SYSTEM,buffer);      
+  for(int i=0;i<l2;i++) {        
     if(*str!=*find) { return false; } 
     str++; find++;
-  }
-//sprintf(buffer,"equals found '%s' '%s' ",str,find); logPrintln(LOG_SYSTEM,buffer);   
+  }  
   return true;
 }
 
@@ -358,7 +357,7 @@ boolean equals(char *str,char *find) {
 */
 int size(char *text) { if(text==NULL) { return -1; } else { return strlen(text); }}
 
-/** insert at pos into buffer */
+/* insert at pos into buffer */
 void insert(char* buffer,int pos,char* insertText) {
     size_t insertLen = strlen(insertText);
     size_t len = strlen(buffer);
@@ -390,7 +389,6 @@ char* to(boolean d) { sprintf(buffer,"%d",d); return buffer; }
 char* to(char *p) {if(p!=NULL && strlen(p)>0 && strlen(p)<bufferMax) { return p; } else { return EMPTY; } }
 const char* to(const char *p) {if(p!=NULL && strlen(p)>0 && strlen(p)<bufferMax) { return p; } else { return EMPTY; } }
 
-//char* to(const char *a) {  sprintf(buffer,"%s",to(a)); return buffer; }
 char* to(char *a,char *b) { sprintf(buffer,"%s%s",to(a),to(b)); return buffer; }
 char* to(const char *a, const char *b,const char *c) {  sprintf(buffer,"%s%s%s",to(a),to(b),to(c)); return buffer; }
 char* to(const char *a, const char *b,const char *c,const char *d) {  sprintf(buffer,"%s%s%s%s",to(a),to(b),to(c),to(d)); return buffer; }
@@ -402,7 +400,6 @@ String toString(char *text) {  if(!is(text)) { return EMPTYSTRING; } return Stri
 
 boolean toBoolean(int i) { return i>0; }
 /* convert char* to boolean */
-//boolean toBoolean(char *p) { return p!=NULL && (strcmp(p, "on")==0 || strcmp(p, "true")==0 || strcmp(p, "1")==0); }
 boolean toBoolean(char *p) { return p!=NULL && strlen(p)>0 && (strcmp(p, "on")==0 || strcmp(p, "true")==0 || atoi(p)>0); }
 /* convert char* to int */
 int toInt(char *p) { if(p!=NULL && strlen(p)>0) { return atoi(p); } else { return -1; } }
@@ -471,13 +468,367 @@ char* espInfo() {
     return buffer;
 }
 
-/* enlabel info 
-char* enableInfo() {
-   sprintf(buffer,"serialEnable:%d cmdEnable:%d ledEnable:%d swEnable:%d wifiEnable:%d webEnable:%d updateEnable:%d mdnsEnable:%d mqttEnable:%d",
-    serialEnable,cmdEnable,ledEnable,swEnable,wifiEnable,webEnable,updateEnable,mdnsEnable,mqttEnable);
-   return buffer; 
-}
+//-----------------------------------------------------------------------------
+// Log
+
+void webLogLn(String msg); // define in web
+void mqttLog(char *message); // define in mqtt
+
+/* log with level 
+    e.g. logPrintln(LOG_INFO,"info"); 
+        sprintf(buffer,"name:'%s'",name);logPrintln(LOG_INFO,buffer);  
 */
+void logPrintln(int level,const char *text) { 
+  if(level>logLevel || !is(text)) { return ; }
+  if(serialEnable) { Serial.println(text); } 
+  if(webEnable) { webLogLn(toString(text)); }
+  if(mqttLogEnable) { mqttLog((char*)text); }
+}
+
+/* log with lvel and string 
+    e.g. logPrintln(LOG_DEBUG,"info text");
+*/
+void logPrintln(int level,String text) {  
+  if(level>logLevel || !is(text)) { return ; } 
+  const char* log=text.c_str();
+  if(serialEnable) { Serial.println(log); } 
+  if(webEnable) { webLogLn(text); }
+  if(mqttLogEnable) { mqttLog((char*)log); }
+}
+
+/* set actual logLevel - log this level and above
+    e.g. setLogLevel(LOG_DEBUG) 
+*/
+char* setLogLevel(int level) {
+  if(level>=0) { logLevel=level; }
+  sprintf(buffer,"%d",logLevel); return buffer;
+}
+
+
+//-----------------------------------------------------------------------------
+// FILESYSTEM SPIFFS / LittleFS
+
+#if enableFs    
+  #ifdef ESP32  
+    #include <SPIFFS.h>  
+    #define FILESYSTEM SPIFFS
+  #elif defined(ESP8266)
+//    #include <SPIFFS.h>
+//    #define FILESYSTEM U_FS
+    #include <LittleFS.h>  
+    #define FILESYSTEM LittleFS
+  #endif
+
+  String rootDir="/";
+
+  /* delete file in SPIFFS [ADMINI] */ 
+  boolean fsDelete(String file) {     
+    if(!is(file)) { return false; }
+    else if(!file.startsWith(rootDir)) { file=rootDir+file; } 
+    boolean ok=FILESYSTEM.remove(file);  
+    sprintf(buffer,"fsDel '%s' ok:%d",file.c_str(),ok);logPrintln(LOG_INFO,buffer);  
+    return true;
+  }
+  boolean fsRename(String oldFile,String newFile) { 
+    if(!is(oldFile) || !is(newFile)) { return false; }
+    else if(!oldFile.startsWith(rootDir)) { oldFile=rootDir+oldFile; } 
+    else if(!newFile.startsWith(rootDir)) { newFile=rootDir+newFile; } 
+    boolean ok=FILESYSTEM.rename(oldFile,newFile);  
+    sprintf(buffer,"fsRename '%s' => '%s' OK:%d",oldFile.c_str(),newFile.c_str(),ok);logPrintln(LOG_INFO,buffer);  
+    return ok;
+  }
+  
+  /* create SPIFFS file and write p1 into file */
+  boolean fsWrite(String file,char *p1) { 
+    if(!is(file)) { return false; }
+    else if(!file.startsWith(rootDir)) { file=rootDir+file; }
+    File ff = FILESYSTEM.open(file, "w");
+    if(!ff){ return false; }
+    int len=strlen(p1);
+    if(p1!=NULL && len>0) { ff.print(p1); }
+    ff.close();
+    sprintf(buffer,"fsWrite '%s %d",file.c_str(),len);logPrintln(LOG_INFO,buffer); 
+    return true;
+  }
+
+  /* create SPIFFS file and write p1 into file */
+  boolean fsWriteBin(String file,uint8_t *p1,int len) { 
+    if(!is(file)) { return false; }
+    else if(!file.startsWith(rootDir)) { file=rootDir+file; }    
+    File ff = FILESYSTEM.open(file, "w");
+    if(!ff){ return false; }
+    ff.write(p1,len);
+    ff.close();
+    sprintf(buffer,"fsWriteBin '%s %d",file,len);logPrintln(LOG_INFO,buffer); 
+    return true;
+  }
+
+
+  /* read file as char array 
+        char *data;  
+        data = fsRead(name); 
+        delete[] data;
+  */
+  char* fsRead(String file) {  
+    if(!is(file)) { return NULL; }
+    else if(!file.startsWith(rootDir)) { file=rootDir+file; }
+    File ff = FILESYSTEM.open(file, "r");  
+    if(ff==NULL) { sprintf(buffer,"fsRead unkown '%s'",file.c_str());logPrintln(LOG_INFO,buffer);   return NULL; } 
+    size_t fileSize= ff.size();
+
+    char *charArray = new char[fileSize + 1];
+    ff.readBytes(charArray, fileSize);
+    charArray[fileSize] = '\0';
+    ff.close();
+
+    sprintf(buffer,"fsRead '%s' %d",file.c_str(),fileSize);logPrintln(LOG_INFO,buffer);  
+    return charArray;
+  }
+
+
+  /* read file as bin 
+        size_t dataSize = 0; // gif data size
+        uint8_t *data = fsReadBin(name, dataSize); 
+        delete[] data;
+  */
+  uint8_t* fsReadBin(String file, size_t& fileSize) {
+    if(!is(file)) { return NULL; }
+    else if(!file.startsWith(rootDir)) { file=rootDir+file; }
+    File ff = FILESYSTEM.open(file, "r");  
+    if(ff==NULL) { sprintf(buffer,"fsReadBin unkown '%s'",file.c_str());logPrintln(LOG_INFO,buffer);   return NULL; } 
+    fileSize= ff.size();
+
+    uint8_t *byteArray = new uint8_t[fileSize];
+    ff.read(byteArray, fileSize);
+
+    ff.close();
+    sprintf(buffer,"fsReadBin '%s' %d",file.c_str(),fileSize);logPrintln(LOG_INFO,buffer);  
+    return byteArray;
+  }
+
+
+  int fsSize(String file) { 
+    if(!is(file)) { return -1; }
+    else if(!file.startsWith(rootDir)) { file=rootDir+file; }
+    File ff = FILESYSTEM.open(file,"r");
+    if(ff==NULL) { sprintf(buffer,"missing fsSize %s",file.c_str());logPrintln(LOG_INFO,buffer); return -1; } 
+    int len=ff.size();
+    ff.close();
+    return len;
+  }
+
+  /* show a file */
+  void fsCat(String file) { 
+    if(!is(file)) { return ; }
+    else if(!file.startsWith(rootDir)) { file=rootDir+file; }
+    File ff = FILESYSTEM.open(file, "r");
+    if(ff==NULL) { logPrintln(LOG_INFO,"missing");  } 
+    char buffer[50];
+    while (ff.available()) {
+      int l = ff.readBytes(buffer, sizeof(buffer));
+      buffer[l] = '\0';  
+      logPrintln(LOG_INFO,buffer);
+    }
+    ff.close();
+  }
+
+  /* list files in SPIFFS of dir (null=/) */
+  char* fsDir(String find) {
+    if(!isAccess(ACCESS_READ))  { return "NO ACCESS fsDir"; }
+    sprintf(buffer,"Files:\n");
+    File root = FILESYSTEM.open(rootDir,"r");
+    File foundfile = root.openNextFile();
+    while (foundfile) {
+      String file=foundfile.name();
+      if(!is(find) || file.indexOf(find)!=-1) { 
+        sprintf(buffer+strlen(buffer),"%s (%d)\n",file,foundfile.size());        
+      }
+      foundfile = root.openNextFile();
+    }
+    root.close();
+    foundfile.close();
+    return buffer; 
+  }
+
+  /* list number of files in SPIFFS of dir (null=/) */
+  int fsDirSize(String find) {
+    int count=0;
+    File root = FILESYSTEM.open(rootDir,"r");
+    File foundfile = root.openNextFile();
+    while (foundfile) {
+      String file=foundfile.name();
+      if(!is(find) || file.indexOf(find)!=-1) { count++; }
+      foundfile = root.openNextFile();
+    }
+    root.close();
+    foundfile.close();
+    return count; 
+  }
+
+  /* get file-name match filter, in dir at index (e.g. .gif,0 => first gif-file) 
+      type<=0 => name of file
+      type=1 => size of file
+  */
+  char* fsFile(String find,int count,int type) {
+    File root = FILESYSTEM.open(rootDir,"r");
+    File foundfile = root.openNextFile();
+    while (foundfile) {
+      String file=foundfile.name();
+      if(!is(find) || file.indexOf(find)!=-1) { 
+        if(count--<=0) { 
+          if(type<=0) { sprintf(buffer,"%s",(char*)file.c_str()); return buffer;  }
+          else if(type==1) { sprintf(buffer,"%d",foundfile.size()); return buffer;  }
+          else { return "unkown type"; }
+        }
+      }
+      foundfile = root.openNextFile();
+    }
+    root.close();
+    foundfile.close();
+    return EMPTY; 
+  }
+
+  /* format SPIFFS */
+  void fsFormat() {
+    sprintf(buffer,"FS formating..."); logPrintln(LOG_DEBUG,buffer); 
+    if (SPIFFS.format()) { sprintf(buffer,"FS format DONE"); logPrintln(LOG_SYSTEM,buffer);  }
+    else { sprintf(buffer,"FS format FAILD"); logPrintln(LOG_ERROR,buffer); }    
+  }
+
+  #if netEnable
+    #include <WiFiClient.h>
+  #ifdef ESP32
+    #include <HTTPClient.h>
+  #elif defined(ESP8266)
+    #include <ESP8266HTTPClient.h>    
+  #endif
+
+    // e.g. https://www.w3.org/Icons/64x64/home.gif
+    char* fsDownload(String url,String name,int reload) {
+      if(!is(url,0,250)) { return "missing url"; }
+
+      HTTPClient http;
+      if(name==NULL) { name=url.substring(url.lastIndexOf('/')); }
+      if(!name.startsWith("/")) { name="/"+name; }
+
+      // check redownload 
+      if(fsSize(name)!=-1) {
+        if(reload==-1) { sprintf(buffer,"download foundOld '%s'",name); return buffer; }
+      }
+
+      #ifdef ESP32
+        http.begin(url); 
+      #elif defined(ESP8266)
+        WiFiClient client;
+        http.begin(client,url); 
+      #endif      
+      
+      int httpCode = http.GET();
+      int size = http.getSize();
+      if(size>MAX_DONWLOAD_SIZE) { http.end(); return "download maxSize error"; }
+
+      FILESYSTEM.remove(name);  // remove old file
+      if (httpCode == 200) {
+        sprintf(buffer,"fs downloading '%s' size %d to '%s'", url.c_str(), size,name.c_str());logPrintln(LOG_INFO,buffer);
+        File ff = FILESYSTEM.open(name, "w"); 
+        http.writeToStream(&ff);
+        ff.close();
+
+        sprintf(buffer,"fs download '%s' size %d to '%s'", url.c_str(), size,name.c_str());logPrintln(LOG_INFO,buffer);
+        http.end();
+        return "download ok";
+      } else {
+        sprintf(buffer,"fs download '%s' error %d",name.c_str(),httpCode);logPrintln(LOG_INFO,buffer);
+        http.end();
+        return "download error";
+      }
+
+    } 
+
+    /* do rest call and return result */
+    char* rest(String url) {
+      if(!isAccess(ACCESS_READ))  { return "NO ACCESS"; }
+      if(!is(url,0,250)) { return "missing url"; }
+
+      HTTPClient http;
+      #ifdef ESP32
+        http.begin(url); 
+      #elif defined(ESP8266)
+        WiFiClient client;
+        http.begin(client,url); 
+      #endif    
+      int httpCode = http.GET();
+
+      if (httpCode == 200) {
+        int size = http.getSize();
+        if(size>bufferMax-1) { http.end(); return "response size error"; }
+
+        String payload = http.getString();
+        http.end();
+        return (char*)payload.c_str();
+
+      } else {
+        sprintf(buffer,"rest '%s' error %d",url.c_str(),httpCode);
+        http.end();
+        return buffer;
+      }  
+    }
+
+  #else 
+    char* fsDownload(String url,String name,int reload) { return EMPTY; }
+    char* rest(String url) { return EMPTY; }  
+  #endif
+
+
+//----------------------------------------------
+
+String fsToSize(const size_t bytes) {
+  if (bytes < 1024) return String(bytes) + " B";
+  else if (bytes < (1024 * 1024)) return String(bytes / 1024.0) + " KB";
+  else if (bytes < (1024 * 1024 * 1024)) return String(bytes / 1024.0 / 1024.0) + " MB";
+  else return String(bytes / 1024.0 / 1024.0 / 1024.0) + " GB";
+}
+
+/* filesystem setup */
+void fsSetup() {
+  if(!enableFs) { return ; }
+  #ifdef ESP32
+    if (!FILESYSTEM.begin(true)) {    // if you have not used SPIFFS before on a ESP32, it will show this error. after a reboot SPIFFS will be configured and will happily work.
+      espRestart("FILESYSTEM ERROR: Cannot mount");
+    }
+  #endif
+  if(!FILESYSTEM.begin()){
+    logPrintln(LOG_SYSTEM,"FILESYSTEM Mount Failed");
+  } else {
+    #ifdef ESP32
+      sprintf(buffer,"SPIFFS Free:%s Used:%s Total:%s",
+        fsToSize((FILESYSTEM.totalBytes() - FILESYSTEM.usedBytes())),fsToSize(FILESYSTEM.usedBytes()),fsToSize(FILESYSTEM.totalBytes()));logPrintln(LOG_INFO,buffer);
+    #else
+//TODO show nonne spiff fs ?     
+      sprintf(buffer,"FS");logPrintln(LOG_INFO,buffer);
+    #endif
+  }
+}
+
+#else
+  boolean fsDelete(String file) { return false; }
+  boolean fsWrite(String file,char *p1) { return false; }
+  boolean fsRename(String oldFile,String newFile) { return false; }
+  char* fsRead(String file) { return NULL; }
+  int8_t* fsReadBin(String file, size_t& fileSize) { return NULL; }
+  int fsSize(String file) { return -1; }
+  void fsCat(String file) {}
+  char* fsDir(String find) { return "fs not implemented";}  
+  int fsDirSize(String find) { return 0; }
+  char* fsDownload(String url,String name,int reaload) { return "fs not implemented"; }
+  char* rest(String url) { return "fs not implemented"; }  
+  char* fsToSize(const size_t bytes) { return "fs not implemented"; }  
+  void fsSetup() {}
+  void fsFormat() {}
+  char* fsFile(String find,int count,int type) { return EMPTY; }
+  
+#endif
+
 
 //-----------------------------------------------------------------------------
 // Time
@@ -641,367 +992,146 @@ void timeLoop() {
   }
 }
 
-//-----------------------------------------------------------------------------
-// Log
+//------------------------------------------------------------
+// Attr
 
-void webLogLn(String msg); // define in web
-void mqttLog(char *message); // define in mqtt
-//void mqttSet(char *mqtt); // set mqtt
+MapList attrMap(true); 
 
-/* log with level 
-    e.g. logPrintln(LOG_INFO,"info"); 
-        sprintf(buffer,"name:'%s'",name);logPrintln(LOG_INFO,buffer);  
+/* remove '$' from key */
+char* _toAttr(char *key) {
+  if(!is(key)) { return EMPTY; } else if(*key=='$') { key++; }
+  return key;
+}
+
+boolean attrHave(char *key) { return attrMap.find(_toAttr(key))!=-1; }
+char* attrGet(char *key) {  return (char*)attrMap.get(_toAttr(key)); }
+void attrSet(char *key,String value) { 
+  char *v=(char*)value.c_str(); 
+  attrMap.replace(_toAttr(key),v,strlen(v)); 
+} 
+void attrSet(char *key,char *value) { attrMap.replace(_toAttr(key),value,strlen(value));  }
+void attrDel(char *key) { attrMap.del(_toAttr(key)); }
+char* attrInfo() {
+  sprintf(buffer,"attrs:\n");
+  for(int i=0;i<attrMap.size();i++) {  
+    char *key=attrMap.key(i);
+    char *value=(char*)attrMap.get(i);
+    if(is(key) && is(value)) {
+      sprintf(buffer+strlen(buffer),"attr %s \"%s\"\n",key,value);
+    }
+  }
+  return buffer;
+}
+void attrClear(char *prefix) { attrMap.clear(prefix); }
+
+//------------------------------------------------------------
+// Sys
+
+/* get sys attribute */
+char* sysAttr(char *name) {
+  int d=0; char* s;
+  if(!is(name)) { return EMPTY; }
+  else if(equals(name,"timestamp")) { d=_timeMs;  }
+  else if(equals(name,"time")) { s=getTime();  }
+  else if(equals(name,"date")) { s=getDate(); }
+  else if(equals(name,"ip")) { s=(char*)appIP.c_str(); }
+  else if(equals(name, "freeHeap")) { d=ESP.getFreeHeap(); }// show free heap
+  else { return EMPTY; }
+
+  if(is(s)) { sprintf(paramBuffer,"%s",s); } else { sprintf(paramBuffer,"%d",d); }
+  return paramBuffer;   
+}
+
+//------------------------------------------------------------
+// Params
+
+
+MapList appParams(true);
+
+class AppParam {
+  private:
+    char *_name;
+    char *_remote;
+  public:
+    boolean _change=false;
+    byte _type=0;
+
+    char* name() { return _name; }
+    char* remote() { return _remote; }
+    boolean is(char *remote) { return equals(remote,_remote); }
+    char* get() { return (char*)attrGet(_name); }
+    void set(char *value) { attrSet(_name,value);_change=true; }
+
+    AppParam(char *name,char *remote,byte type) { 
+        _name=copy(name); _remote=copy(remote);
+        _type=type;
+    }
+    ~AppParam() { free(_name);  free(_remote); }
+};
+
+//------
+
+char* paramsInfo() {
+  sprintf(buffer,"params:\n");
+  for(int i=0;i<appParams.size();i++) {      
+    char *key=appParams.key(i);
+    AppParam *param=(AppParam*)appParams.get(i);
+    sprintf(buffer+strlen(buffer),"param %s remote:%s type:%d change:%d \n",param->name(),param->remote(),param->_type,param->_change);
+  }
+  return buffer;
+}
+
+boolean paramSet(char *remote,char *value) {
+    for(int i=0;i<appParams.size();i++) {  
+    AppParam *p=(AppParam*)appParams.get(i);
+    if(p->is(remote)) { 
+      p->set(value);
+      return true;
+    }
+  }
+  return false;
+}
+
+int paramsFind(char *remote) {
+  for(int i=0;i<appParams.size();i++) {  
+    AppParam *p=(AppParam*)appParams.get(i);
+    if(p->is(remote)) { return i; }
+  }
+  return NULL;
+}
+
+void* paramsGet(char *name) {
+  return appParams.get(name);
+}
+
+//------
+
+char* paramRemote(char *name) {
+  AppParam *param=(AppParam*)appParams.get(name);
+  if(param!=NULL) { return param->remote(); } else { return NULL; }
+}
+
+boolean paramsDel(char *name) {
+  AppParam *param=(AppParam*)appParams.get(name);
+  if(param==NULL) { return false; }
+  appParams.del(name);
+  return true;
+}
+
+
+boolean paramsAdd(char *name,char *remote,byte type) {
+  AppParam *p=new AppParam(name,remote,type);
+  appParams.set(name,p);  // add new param
+  return true;
+}
+
+/*
+boolean paramsAdd(AppParam *p) {
+  if(paramGet(p->name)!=NULL) { return false; }
+  appParams.add(p->name(),p);  // add new param
+  return true;
+}
 */
-void logPrintln(int level,const char *text) { 
-  if(level>logLevel || !is(text)) { return ; }
-  if(serialEnable) { Serial.println(text); } 
-  if(webEnable) { webLogLn(toString(text)); }
-  if(mqttLogEnable) { mqttLog((char*)text); }
-}
-
-/* log with lvel and string 
-    e.g. logPrintln(LOG_DEBUG,"info text");
-*/
-void logPrintln(int level,String text) {  
-  if(level>logLevel || !is(text)) { return ; } 
-  const char* log=text.c_str();
-  if(serialEnable) { Serial.println(log); } 
-  if(webEnable) { webLogLn(text); }
-  if(mqttLogEnable) { mqttLog((char*)log); }
-}
-
-/* set actual logLevel - log this level and above
-    e.g. setLogLevel(LOG_DEBUG) 
-*/
-char* setLogLevel(int level) {
-  if(level>=0) { logLevel=level; }
-  sprintf(buffer,"%d",logLevel); return buffer;
-}
-
-//-----------------------------------------------------------------------------
-// SPIFFS
-
-#if enableFs    
-  #ifdef ESP32  
-    #include <SPIFFS.h>  
-    #define FILESYSTEM SPIFFS
-  #elif defined(ESP8266)
-//    #include <SPIFFS.h>
-//    #define FILESYSTEM U_FS
-    #include <LittleFS.h>  
-    #define FILESYSTEM LittleFS
-  #endif
-
-  String rootDir="/";
-
-  /* delete file in SPIFFS [ADMINI] */ 
-  boolean fsDelete(String file) {     
-    if(!is(file)) { return false; }
-    else if(!file.startsWith(rootDir)) { file=rootDir+file; } 
-    boolean ok=FILESYSTEM.remove(file);  
-    sprintf(buffer,"fsDel '%s' ok:%d",file.c_str(),ok);logPrintln(LOG_INFO,buffer);  
-    return true;
-  }
-  boolean fsRename(String oldFile,String newFile) { 
-    if(!is(oldFile) || !is(newFile)) { return false; }
-    else if(!oldFile.startsWith(rootDir)) { oldFile=rootDir+oldFile; } 
-    else if(!newFile.startsWith(rootDir)) { newFile=rootDir+newFile; } 
-    boolean ok=FILESYSTEM.rename(oldFile,newFile);  
-    sprintf(buffer,"fsRename '%s' => '%s' OK:%d",oldFile.c_str(),newFile.c_str(),ok);logPrintln(LOG_INFO,buffer);  
-    return ok;
-  }
-  
-  /* create SPIFFS file and write p1 into file */
-  boolean fsWrite(String file,char *p1) { 
-    if(!is(file)) { return false; }
-    else if(!file.startsWith(rootDir)) { file=rootDir+file; }
-    File ff = FILESYSTEM.open(file, "w");
-    if(!ff){ return false; }
-    int len=strlen(p1);
-    if(p1!=NULL && len>0) { ff.print(p1); }
-    ff.close();
-    sprintf(buffer,"fsWrite '%s %d",file.c_str(),len);logPrintln(LOG_INFO,buffer); 
-    return true;
-  }
-
-  /* create SPIFFS file and write p1 into file */
-  boolean fsWriteBin(String file,uint8_t *p1,int len) { 
-    if(!is(file)) { return false; }
-    else if(!file.startsWith(rootDir)) { file=rootDir+file; }    
-    File ff = FILESYSTEM.open(file, "w");
-    if(!ff){ return false; }
-    ff.write(p1,len);
-    ff.close();
-    sprintf(buffer,"fsWriteBin '%s %d",file,len);logPrintln(LOG_INFO,buffer); 
-    return true;
-  }
-
-
-  /* read file as char array 
-        char *data;  
-        data = fsRead(name); 
-        delete[] data;
-  */
-  char* fsRead(String file) {  
-    if(!is(file)) { return NULL; }
-    else if(!file.startsWith(rootDir)) { file=rootDir+file; }
-    File ff = FILESYSTEM.open(file, "r");  
-    if(ff==NULL) { sprintf(buffer,"fsRead unkown '%s'",file.c_str());logPrintln(LOG_INFO,buffer);   return NULL; } 
-    size_t fileSize= ff.size();
-
-    char *charArray = new char[fileSize + 1];
-    ff.readBytes(charArray, fileSize);
-    charArray[fileSize] = '\0';
-    ff.close();
-
-    sprintf(buffer,"fsRead '%s' %d",file.c_str(),fileSize);logPrintln(LOG_INFO,buffer);  
-    return charArray;
-  }
-
-
-  /* read file as bin 
-        size_t dataSize = 0; // gif data size
-        uint8_t *data = fsReadBin(name, dataSize); 
-        delete[] data;
-  */
-  uint8_t* fsReadBin(String file, size_t& fileSize) {
-    if(!is(file)) { return NULL; }
-    else if(!file.startsWith(rootDir)) { file=rootDir+file; }
-    File ff = FILESYSTEM.open(file, "r");  
-    if(ff==NULL) { sprintf(buffer,"fsReadBin unkown '%s'",file.c_str());logPrintln(LOG_INFO,buffer);   return NULL; } 
-    fileSize= ff.size();
-
-    uint8_t *byteArray = new uint8_t[fileSize];
-    ff.read(byteArray, fileSize);
-
-    ff.close();
-    sprintf(buffer,"fsReadBin '%s' %d",file.c_str(),fileSize);logPrintln(LOG_INFO,buffer);  
-    return byteArray;
-  }
-
-
-  int fsSize(String file) { 
-    if(!is(file)) { return -1; }
-    else if(!file.startsWith(rootDir)) { file=rootDir+file; }
-    File ff = FILESYSTEM.open(file,"r");
-    if(ff==NULL) { sprintf(buffer,"missing fsSize %s",file.c_str());logPrintln(LOG_INFO,buffer); return -1; } 
-    int len=ff.size();
-    ff.close();
-    return len;
-  }
-
-  /* show a file */
-  void fsCat(String file) { 
-    if(!is(file)) { return ; }
-    else if(!file.startsWith(rootDir)) { file=rootDir+file; }
-    File ff = FILESYSTEM.open(file, "r");
-    if(ff==NULL) { logPrintln(LOG_INFO,"missing");  } 
-    char buffer[50];
-    while (ff.available()) {
-      int l = ff.readBytes(buffer, sizeof(buffer));
-      buffer[l] = '\0';
-  //TODO print with ln    
-      logPrintln(LOG_INFO,buffer);
-    }
-    ff.close();
-  }
-
-  /* list files in SPIFFS of dir (null=/) */
-  char* fsDir(String find) {
-    if(!isAccess(ACCESS_READ))  { return "NO ACCESS fsDir"; }
-    sprintf(buffer,"Files:\n");
-    File root = FILESYSTEM.open(rootDir,"r");
-    File foundfile = root.openNextFile();
-    while (foundfile) {
-      String file=foundfile.name();
-      if(!is(find) || file.indexOf(find)!=-1) { 
-        sprintf(buffer+strlen(buffer),"%s (%d)\n",file,foundfile.size());        
-      }
-      foundfile = root.openNextFile();
-    }
-    root.close();
-    foundfile.close();
-    return buffer; 
-  }
-
-  /* list number of files in SPIFFS of dir (null=/) */
-  int fsDirSize(String find) {
-    int count=0;
-    File root = FILESYSTEM.open(rootDir,"r");
-    File foundfile = root.openNextFile();
-    while (foundfile) {
-      String file=foundfile.name();
-      if(!is(find) || file.indexOf(find)!=-1) { count++; }
-      foundfile = root.openNextFile();
-    }
-    root.close();
-    foundfile.close();
-    return count; 
-  }
-
-  /* get file-name match filter, in dir at index (e.g. .gif,0 => first gif-file) 
-      type<=0 => name of file
-      type=1 => size of file
-  */
-  char* fsFile(String find,int count,int type) {
-    File root = FILESYSTEM.open(rootDir,"r");
-    File foundfile = root.openNextFile();
-    while (foundfile) {
-      String file=foundfile.name();
-      if(!is(find) || file.indexOf(find)!=-1) { 
-        if(count--<=0) { 
-          if(type<=0) { sprintf(buffer,"%s",(char*)file.c_str()); return buffer;  }
-          else if(type==1) { sprintf(buffer,"%d",foundfile.size()); return buffer;  }
-//          else if(type==2) { sprintf(buffer,"%d",foundfile.date()); return buffer;  }
-          else { return "unkown type"; }
-        }
-      }
-      foundfile = root.openNextFile();
-    }
-    root.close();
-    foundfile.close();
-    return EMPTY; 
-  }
-
-  /* format SPIFFS */
-  void fsFormat() {
-    sprintf(buffer,"FS formating..."); logPrintln(LOG_DEBUG,buffer); 
-    if (SPIFFS.format()) { sprintf(buffer,"FS format DONE"); logPrintln(LOG_SYSTEM,buffer);  }
-    else { sprintf(buffer,"FS format FAILD"); logPrintln(LOG_ERROR,buffer); }    
-  }
-
-  #if netEnable
-
-    #include <WiFiClient.h>
-  #ifdef ESP32
-    #include <HTTPClient.h>
-  #elif defined(ESP8266)
-    #include <ESP8266HTTPClient.h>    
-  #endif
-
-    // e.g. https://www.w3.org/Icons/64x64/home.gif
-    char* fsDownload(String url,String name,int reload) {
-      if(!is(url,0,250)) { return "missing url"; }
-
-      HTTPClient http;
-      if(name==NULL) { name=url.substring(url.lastIndexOf('/')); }
-      if(!name.startsWith("/")) { name="/"+name; }
-
-      // check redownload 
-      if(fsSize(name)!=-1) {
-        if(reload==-1) { sprintf(buffer,"download foundOld '%s'",name); return buffer; }
-      }
-
-      #ifdef ESP32
-        http.begin(url); 
-      #elif defined(ESP8266)
-        WiFiClient client;
-        http.begin(client,url); 
-      #endif      
-      
-      int httpCode = http.GET();
-      int size = http.getSize();
-      if(size>MAX_DONWLOAD_SIZE) { http.end(); return "download maxSize error"; }
-
-      FILESYSTEM.remove(name);  // remove old file
-//      uint8_t buff[128] PROGMEM = {0};
-      if (httpCode == 200) {
-        sprintf(buffer,"fs downloading '%s' size %d to '%s'", url.c_str(), size,name.c_str());logPrintln(LOG_INFO,buffer);
-        File ff = FILESYSTEM.open(name, "w"); 
-        http.writeToStream(&ff);
-        ff.close();
-
-        sprintf(buffer,"fs download '%s' size %d to '%s'", url.c_str(), size,name.c_str());logPrintln(LOG_INFO,buffer);
-        http.end();
-        return "download ok";
-      } else {
-        sprintf(buffer,"fs download '%s' error %d",name.c_str(),httpCode);logPrintln(LOG_INFO,buffer);
-        http.end();
-        return "download error";
-      }
-
-    } 
-
-    /* do rest call and return result */
-    char* rest(String url) {
-      if(!isAccess(ACCESS_READ))  { return "NO ACCESS"; }
-      if(!is(url,0,250)) { return "missing url"; }
-
-      HTTPClient http;
-      #ifdef ESP32
-        http.begin(url); 
-      #elif defined(ESP8266)
-        WiFiClient client;
-        http.begin(client,url); 
-      #endif    
-      int httpCode = http.GET();
-
-      if (httpCode == 200) {
-        int size = http.getSize();
-        if(size>bufferMax-1) { http.end(); return "response size error"; }
-
-        String payload = http.getString();
-        http.end();
-        return (char*)payload.c_str();
-
-      } else {
-        sprintf(buffer,"rest '%s' error %d",url.c_str(),httpCode);
-        http.end();
-        return buffer;
-      }  
-    }
-
-  #else 
-    char* fsDownload(String url,String name,int reload) { return EMPTY; }
-    char* rest(String url) { return EMPTY; }  
-  #endif
-
-
-//----------------------------------------------
-
-String fsToSize(const size_t bytes) {
-  if (bytes < 1024) return String(bytes) + " B";
-  else if (bytes < (1024 * 1024)) return String(bytes / 1024.0) + " KB";
-  else if (bytes < (1024 * 1024 * 1024)) return String(bytes / 1024.0 / 1024.0) + " MB";
-  else return String(bytes / 1024.0 / 1024.0 / 1024.0) + " GB";
-}
-
-/* filesystem setup */
-void fsSetup() {
-  if(!enableFs) { return ; }
-  #ifdef ESP32
-    if (!FILESYSTEM.begin(true)) {    // if you have not used SPIFFS before on a ESP32, it will show this error. after a reboot SPIFFS will be configured and will happily work.
-      espRestart("FILESYSTEM ERROR: Cannot mount");
-    }
-  #endif
-  if(!FILESYSTEM.begin()){
-    logPrintln(LOG_SYSTEM,"FILESYSTEM Mount Failed");
-  } else {
-    #ifdef ESP32
-      sprintf(buffer,"SPIFFS Free:%s Used:%s Total:%s",
-        fsToSize((FILESYSTEM.totalBytes() - FILESYSTEM.usedBytes())),fsToSize(FILESYSTEM.usedBytes()),fsToSize(FILESYSTEM.totalBytes()));logPrintln(LOG_INFO,buffer);
-    #else
-//TODO show nonne spiff fs ?     
-      sprintf(buffer,"FS");logPrintln(LOG_INFO,buffer);
-    #endif
-  }
-}
-
-#else
-  boolean fsDelete(String file) { return false; }
-  boolean fsWrite(String file,char *p1) { return false; }
-  boolean fsRename(String oldFile,String newFile) { return false; }
-  char* fsRead(String file) { return NULL; }
-  int8_t* fsReadBin(String file, size_t& fileSize) { return NULL; }
-  int fsSize(String file) { return -1; }
-  void fsCat(String file) {}
-  char* fsDir() { return "fs not implemented";}  
-  char* fsDownload(String url,String name,int reaload) { return "fs not implemented"; }
-  char* rest(String url) { return "fs not implemented"; }  
-  char* fsToSize(const size_t bytes) { return "fs not implemented"; }  
-  void fsSetup() {}
-  void fsFormat() {}
-#endif
 
 //-------------------------------------------------------------------------------------------------------------------
 // LED
@@ -1385,6 +1515,7 @@ char* swInit(int pin, boolean on, byte mode, int timeBase, byte tickShort, byte 
 }
 
 #endif
+
 /*
  * Wifi
  */
@@ -1396,16 +1527,11 @@ char* swInit(int pin, boolean on, byte mode, int timeBase, byte tickShort, byte 
   #include <esp_sntp.h> // time
 #else
   #include <sys/time.h>  // struct timeval
-//  #include <coredecls.h>  // ! optional settimeofday_cb() callback to check on server
 #endif
 
 #include <time.h>     // time
 
-#ifdef ESP32
-  #include <ESPmDNS.h>
-#elif defined(ESP8266)
-  #include <ESP8266mDNS.h>
-#endif
+
 
 // Bootloader version
 char bootType[5] = "Os01"; // max 10 chars
@@ -1443,7 +1569,6 @@ unsigned long *wifiTime = new unsigned long(0);
 byte wifiStat=WIFI_CON_OFF; //  wifi status
 int bootWifiCount=0; // counter for wifi not reached
 int _lastClient=0; // numer of AP clients
-// boolean _wifiConnect=false; // ist wifi connect or client connect to ap
 
 //-------------------------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------------------------
@@ -1508,7 +1633,7 @@ void eeInit() {
   eeSave();
 }
 
-/** e setup */
+/* ee setup */
 void eeSetup() {
 //TODO show restart reason
   if(MODE_DEFAULT==EE_MODE_FIRST) { bootClear(); } // is INIT => reset ALL
@@ -1643,7 +1768,6 @@ bool isAccess(int requireLevel) {
   else if(requireLevel>=eeBoot.accessLevel) { return true; } // access free
   else { 
     sprintf(buffer,"ACCESS DENIED %d<%d %d",requireLevel,eeBoot.accessLevel,_isLogin); 
-//    logPrintln(LOG_ERROR,buffer); 
     cmdError(buffer);     
     return false;     
     }
@@ -1662,6 +1786,13 @@ boolean login(char *p) {
 //-------------------------------------------------------------------------------------------------------------------
 // mDNS
 
+#if mdnsEnable
+  #ifdef ESP32
+    #include <ESPmDNS.h>
+  #elif defined(ESP8266)
+    #include <ESP8266mDNS.h>
+  #endif
+
 void mdnsSetup() {
   if(!is(eeBoot.espName)) { return ; }
   else if(MDNS.begin(eeBoot.espName)) { 
@@ -1670,35 +1801,23 @@ void mdnsSetup() {
   }else { sprintf(buffer,"MDNS error"); logPrintln(LOG_ERROR,buffer); }
 }
 
-#ifdef ESP32
   void mdnsLoop() {  
+    #ifdef ESP32
+    #elif defined(ESP8266)
+      MDNS.update();
+    #endif
   }
 
-#elif defined(ESP8266)
-
-  void mdnsLoop() {  
-    MDNS.update();
-  }
-
+#else
+  void mdnsSetup() {}
+  void mdnsLoop() { }
 #endif
 
 //-------------------------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------------------------
 // Wifi
 
-/*
-#ifdef ESP32
-  #include <WiFi.h>
-#elif defined(ESP8266)
-  #include <ESP8266WiFi.h>
-#elif defined(TARGET_RP2040)
-  #include <WiFi.h>
-#endif
-*/
-
 void webSetup();
-
-
     
 // start scan network
 char* wifiScan() { 
@@ -1981,7 +2100,7 @@ void wifiAPClientConnect() {
   } else if(numClients==0) {  wifiStat=WIFI_CON_CONNECTING; } 
 }
 
-/** this client connected to remote set_up */
+/* this client connected to remote set_up */
 void wifiAPConnectoToSetup() {
     if (WiFi.status() == WL_CONNECTED) {      
       String gw=WiFi.gatewayIP().toString();
@@ -2030,6 +2149,19 @@ void wifiConnecting() {
          bootWifiCount=1; // try again
       }
     }  
+}
+
+//--------------------------------------------------------------------------------------
+
+byte setupDevice=0;
+
+char* setupDev(char *p0) {
+  if(is(p0)) { 
+    setupDevice=toInt(p0); 
+    if(setupDevice>0) { wifiAccessPoint(true); } // enable wifi setp_up
+    else { wifiInit(); }
+  } 
+  sprintf(buffer,"%d",setupDevice); return buffer;
 }
 
 //--------------------------------------------------------------------------------------
@@ -2125,16 +2257,6 @@ void wifiValidate() {
 
   }
 
-
-/*
-  } else if (eeMode < EE_MODE_OK) {  
-  } else {
-    if (WiFi.status() != WL_CONNECTED) { // connection loose
-      wifiStart();
-    }
-  }
-*/
-
 }
 
 
@@ -2185,13 +2307,6 @@ void wifiStart(boolean on) {
 //-------------------------------------------------------------
 
 #if otaEnable
-/*
-#ifdef ESP32
-  #include <NetworkUdp.h>
-#elif defined(ESP8266)
-  #include <WIFIUdp.h>
-#endif
-*/
 
 #include <ArduinoOTA.h>
 
@@ -2236,6 +2351,7 @@ void otaLoop() {
   void otaLoop() {}
 #endif
 
+
 #if mqttEnable
 
 // MQTT
@@ -2270,7 +2386,7 @@ WiFiClient *mqttWifiClient=NULL;
 #elif defined(ESP8266)
   #include <WiFiClientSecure.h>
   WiFiClientSecure *mqttClientSSL=NULL; // WiFiClientSecure / NetworkClientSecure
-#endif    
+#endif   
 
 PubSubClient *mqttClient=NULL;
 
@@ -2339,47 +2455,40 @@ void mqttLog(char *message) {
   }
 }
 
-/*
-void publishValueMessage(char *name,char *message) {
-  if (mqttStatus != 2) { return ; }  
-  sprintf(mqttTopic,"%s/%s%/value/%s",mqttPrefix,mqttClientName,name);
-  boolean ok=mqttClient->publish(mqttTopic, message);
-  sprintf(buffer,"MQTT publish %s => %s ok:%d", mqttTopic,message,ok);  logPrintln(LOG_DEBUG,buffer);
+/* subcribe topic to attr */
+boolean mqttAttr(char* name,char *topic) {
+  if(mqttStatus != 2) { return false; }  
+  paramsAdd(name,topic,0);
+  attrMap.replace(name,(char*)"",0); 
+  boolean ok=mqttSubscribe(topic); 
+  sprintf(buffer,"MQTTattr subscribe '%s' topic:%s ok:%d", name,topic,ok); logPrintln(LOG_DEBUG,buffer);
+  return true;
 }
 
-
-void publishValue(char *key,char *value) {
-//  sprintf(message,"{\"%s\":\"%s\"}",key,value);  
-//  publishStatus(message);
-  publishValueMessage(key,to(value));
+boolean mqttDel(char* name,char *topic) {
+    if(topic==NULL) { return false; }
+    boolean ok=mqttClient->unsubscribe(topic); 
+    attrMap.del(name);
+    appParams.del(name);
+    sprintf(buffer,"MQTTattr unsubsrcibe '%s' topic:%s ok:%d", name,topic,ok); logPrintln(LOG_DEBUG,buffer);
+    return ok;
 }
-*/
 
-/*
-void publishResponse(char *id,char *result) {
-  if (mqttStatus != 2) { return ; }
-  if(result!=NULL && sizeof(result)>0) {
-    if(id!=NULL) { sprintf(mqttMessage,"%s:%s", id,result); }
-    else { sprintf(mqttMessage,result); }
-    boolean ok=mqttClient->publish(mqttTopicResponse, mqttMessage);
-    sprintf(buffer,"MQTT publish %s => %s ok:%d", mqttTopicResponse,mqttMessage,ok);  logPrintln(LOG_DEBUG,buffer);
+boolean mqttDel(char* name) {
+    char *topic=paramRemote(name);
+    if(topic==NULL) { return false; } else { return mqttDel(name,topic); }
+}
+
+int paramsClear(byte type) {
+  int count=0;
+  for(int i=appParams.size()-1;i>=0;i--) {  
+    AppParam *p=(AppParam*)appParams.get(i);
+    if(type==255 || type==p->_type) { 
+      mqttDel(p->name(),p->remote());
+      count++;
+    }
   }
-}
-*/
-
-/** subcribe topic to attr **/
-void mqttAttr(char *topic,boolean on) {
-  if(mqttStatus != 2) { return ; }  
-  sprintf(buffer,"MQTT attr via topic %s",topic);
-  if(on) { 
-    if(attrHave(topic)) {  return ; } // alrady have
-    char* t=copy(topic);
-    attrMap.replace(t,(char*)"",0); boolean ok=mqttClient->subscribe(t); 
-    sprintf(buffer,"MQTT subsrcibe '%s' attr:%s", topic,topic,ok); logPrintln(LOG_DEBUG,buffer);
-  } else { 
-    boolean ok=mqttClient->unsubscribe(topic); attrMap.del(topic); 
-    sprintf(buffer,"MQTT unsubsrcibe '%s' attr:%s ok:%d", topic,topic,ok); logPrintln(LOG_DEBUG,buffer);
-  } 
+  return count;
 }
 
 //-----------------------------------------------------
@@ -2426,9 +2535,11 @@ void mqttReceive(char* topic, byte* payload, unsigned int length) {
     free(msg);
     mqttPublishState("cmd",result);
 
+/*
   } else if(attrMap.find(topic)!=-1) { 
     attrMap.replace(topic,(char*)payload,length);
     sprintf(buffer,"MQTT attrSet '%s'", topic); logPrintln(LOG_DEBUG,buffer);
+*/
 
   #if mqttDiscovery  
   } else if (strcmp(topic,mqttTopicReceive) == 0) { 
@@ -2440,11 +2551,14 @@ void mqttReceive(char* topic, byte* payload, unsigned int length) {
       free(msg);
   #endif
 
-  } else { sprintf(buffer,"MQTT unkown topic '%s'", topic); logPrintln(LOG_DEBUG,buffer);}
+  } else { 
+    char *msg=copy(NULL,(char*)payload,length);
+    boolean ok=paramSet(topic,msg);
+    if(!ok) { sprintf(buffer,"MQTT unkown topic '%s'", topic); logPrintln(LOG_DEBUG,buffer); }    
+    free(msg);
+  }
 
 }
-
-
 
 //-------------------------------------------------------
 
@@ -2525,8 +2639,7 @@ void mqttConnect() {
     if (mqttClient->connect(mqttClientName,mqttUser,mqttPas,mqttTopicOnline, 0, true, "offline")) { // cennect with user and last will availability="offline"
       sprintf(buffer,"MQTT connected %s => %s", mqttClientName, mqttServer); logPrintln(LOG_INFO,buffer); 
 
-      mqttStatus = 2;     
-//      publishValue("status","connect");        
+      mqttStatus = 2;          
       
       char *cmdTopic=concat(mqttTopicReceive,"+",NULL); mqttSubscribe(cmdTopic); free(cmdTopic); // subscibe all cmds
 
@@ -2590,19 +2703,27 @@ void mqttLoop() {
   void mqttLoop() {}
   void mqttLog(char *message) {}
   boolean mqttPublish(char* topic,char *message) {} 
-  void mqttAttr(char *topic,boolean on) {}
+  boolean mqttAttr(char *name,char *topic) {}  
+  boolean mqttDel(char*name) {}
+
+  int paramsClear(byte type) { return 0; }
+  
 #endif
+
+
+#if webEnable
+
+
 
 #include <Arduino.h>
 #ifdef ESP32
-//  #include <WiFi.h>  
   #include <AsyncTCP.h>
-#include <ESPmDNS.h>
+  #include <ESPmDNS.h>
 #elif defined(ESP8266)
-//  #include <ESP8266WiFi.h>
   #include <ESPAsyncTCP.h>
   #include <ESP8266mDNS.h>
 #endif
+
 
 
 AsyncAuthenticationMiddleware basicAuth;
@@ -2872,33 +2993,6 @@ void webFileManager(AsyncWebServerRequest *request) {
 
 #if webSerialEnable
 
-/*
-//TODO AsyncWebSerial for esp8266
-  #include <AsyncWebSerial.h>
-  String path_console = "/webserial";
-  AsyncWebSerial webSerial;
-  void webSerialReceive(uint8_t *data, size_t len) {
-    String line = "";
-    for (int i = 0; i < len; i++) { line += char(data[i]); }
-    char ca[len + 1];
-    for (int i = 0; i < len; i++) { ca[i] = data[i]; }
-    ca[len] = '\0';
-    char* ret = cmdLine(ca);  // exec cmd
-  }
-
-  void webLogLn(String msg) {
-    if (webEnable && _webInit) { webSerial.println(msg); }
-  }
-
-  void webSerialSetup() {
-    webSerial.onMessage(webSerialReceive);  // exec cmd
-    webSerial.begin(&server);
-    if (is(eeBoot.espPas)) { webSerial.setAuthentication(user_admin, eeBoot.espPas); }  // webSerial auth
-    sprintf(buffer, "WebSerial started %s", path_console.c_str()); logPrintln(LOG_DEBUG,buffer);
-  }
-
-*/
-
   #include <WebSerialLite.h>
 
   void recvMsg(uint8_t *data, size_t len){
@@ -2916,7 +3010,7 @@ void webFileManager(AsyncWebServerRequest *request) {
   }
 
   void webSerialSetup() {
-    WebSerial.begin(&server);
+    WebSerial.begin(&webServer);
     WebSerial.onMessage(recvMsg);
 //TODO    if (is(eeBoot.espPas)) { WebSerial.setAuthentication(user_admin, eeBoot.espPas); }  // webSerial auth
     sprintf(buffer, "WebSerial started /webserial"); logPrintln(LOG_DEBUG,buffer);
@@ -3013,7 +3107,7 @@ void webCmd(AsyncWebServerRequest *request) {
 
 //-------------------------------------------------------------------------------------------------------------------
 
-byte setupDevice=0;
+
 
 /* setup remote device by return "setup wifi_ssid wifi_pas NAME espPas" */
 void webSetupDevice(AsyncWebServerRequest *request) {
@@ -3032,14 +3126,7 @@ void webSetupDevice(AsyncWebServerRequest *request) {
   }
 }  
 
-char* setupDev(char *p0) {
-  if(is(p0)) { 
-    setupDevice=toInt(p0); 
-    if(setupDevice>0) { wifiAccessPoint(true); } // enable wifi setp_up
-    else { wifiInit(); }
-  } 
-  sprintf(buffer,"%d",setupDevice); return buffer;
-}
+
 
 //-------------------------------------------------------------------------------------------------------------------
 // auth
@@ -3051,23 +3138,6 @@ void webRes(AsyncWebServerRequest *request) {
 //  else if(onlyImage && (!name.endsWith(".gif") || !name.endsWith(".jpg"))) {  request->send(403, "text/html","not image"); }
   else { request->send(SPIFFS, name);  }
 }
-
-//-------------------------------------------------------------------------------------------------------------------
-// auth
-
-/*
-AsyncMiddlewareFunction webAuth([](AsyncWebServerRequest* request, ArMiddlewareNext next) {
-  if (!request->authenticate("user", "password")) {
-    return request->requestAuthentication();
-  }
-//  request->setAttribute("user", "user");
-//  request->setAttribute("role", "staff");
-
-  next();
-
-//  request->getResponse()->addHeader("X-Rate-Limit", "200");
-});
-*/
 
 //-------------------------------------------------------------------------------------------------------------------
 
@@ -3086,7 +3156,7 @@ void webSetup() {
   basicAuth.setAuthType(AsyncAuthType::AUTH_BASIC);
   basicAuth.generateHash();
 
-  server.on("/config", HTTP_GET, [](AsyncWebServerRequest *request) { webWifi(request);})
+  webServer.on("/config", HTTP_GET, [](AsyncWebServerRequest *request) { webWifi(request);})
     .addMiddleware(&basicAuth);
 
   #if webSerialEnable
@@ -3096,13 +3166,13 @@ void webSetup() {
 
   // OTA
   if (updateEnable) {
-    server.on("/firmware", HTTP_GET, [](AsyncWebServerRequest *request) {
+    webServer.on("/firmware", HTTP_GET, [](AsyncWebServerRequest *request) {
             webUpdate(request);
           })
         .addMiddleware(&basicAuth);
 //TODO    if(eeBoot.accessTyper!=ACCESS_ALL) {  .addMiddleware(&basicAuth); }
       
-    server.on(
+    webServer.on(
             "/doUpdate", HTTP_POST,
             [](AsyncWebServerRequest *request) {},
             [](AsyncWebServerRequest *request, const String &filename, size_t index, uint8_t *data,
@@ -3121,12 +3191,12 @@ void webSetup() {
   }
 
   //File Manager
-  server.on("/file", HTTP_GET, [](AsyncWebServerRequest *request) {
+  webServer.on("/file", HTTP_GET, [](AsyncWebServerRequest *request) {
           webFileManager(request);
         })
     .addMiddleware(&basicAuth);
   
-  server.on(
+  webServer.on(
           "/doUpload", HTTP_POST,
           [](AsyncWebServerRequest *request) {},[](AsyncWebServerRequest *request, const String &filename, size_t index, uint8_t *data,size_t len, bool final) {
             webFileManagerUpload(request, filename, index, data, len, final);
@@ -3135,19 +3205,19 @@ void webSetup() {
   
 
   // cmd
-  server.on("/cmd", HTTP_GET, [](AsyncWebServerRequest *request) { webCmd(request); })
+  webServer.on("/cmd", HTTP_GET, [](AsyncWebServerRequest *request) { webCmd(request); })
     .addMiddleware(&basicAuth);
 
   // resources
-  server.on("/res", HTTP_GET, [](AsyncWebServerRequest *request) { webRes(request); })
+  webServer.on("/res", HTTP_GET, [](AsyncWebServerRequest *request) { webRes(request); })
     .addMiddleware(&basicAuth);
 
   // web setupdevice
-  server.on("/setupDevice", HTTP_GET, [](AsyncWebServerRequest *request) { webSetupDevice(request); });
+  webServer.on("/setupDevice", HTTP_GET, [](AsyncWebServerRequest *request) { webSetupDevice(request); });
 
   //root
-  server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) { webRoot(request); });
-  server.onNotFound([](AsyncWebServerRequest *request) {
+  webServer.on("/", HTTP_GET, [](AsyncWebServerRequest *request) { webRoot(request); });
+  webServer.onNotFound([](AsyncWebServerRequest *request) {
     request->send(404);
   });
 
@@ -3155,7 +3225,7 @@ void webSetup() {
   webApp();
 
 
-  server.begin();
+  webServer.begin();
 
 
   _webInit = true;
@@ -3172,10 +3242,130 @@ void webLoop() {
   #endif
 }
 
-void webStart(boolean on) {
-  webEnable = on;
-  webSetup();
-}
+
+#else 
+  void webLoop() {}  
+  void webSetup() {}
+#endif
+
+
+
+#if telnetEnable
+
+  int telnetPort=23;
+//  WiFiServer telnetServer(telnetPort);  // Create server object on port 23
+//  WiFiClient telnetClient=NULL;
+  NetworkServer telnetServer(telnetPort);  // Create server object on port 23
+  NetworkClient telnetClient=NULL;
+
+/*
+//TODO #include <SHA.h>
+  #include <base64.h>
+
+//  boolean wsHandshakeDone = false;
+
+  String computeAcceptKey(String key) {
+    // Magic string to be appended as per WebSocket protocol
+    key += "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
+
+    // SHA1 hash
+    uint8_t sha1Hash[20];
+//TODO    sha1(key.c_str(), key.length(), sha1Hash);
+
+    // Base64 encode
+    return base64::encode(sha1Hash, 20);
+  }
+
+  void telnetWsHandshake(String key) {
+//    if (!wsHandshakeDone) {
+//      wsHandshakeDone = true;
+
+      telnetClient.println("HTTP/1.1 101 Switching Protocols");
+      telnetClient.println("Upgrade: websocket");
+      telnetClient.println("Connection: Upgrade");
+      telnetClient.println("Sec-WebSocket-Accept: " + computeAcceptKey(key));
+      telnetClient.println();
+
+Serial.println("WebSocket Handshake completed");
+  }
+
+  char* telnetReadLine() {
+    inIndex=0; boolean end=false;
+    while(telnetClient.connected() && !end) {
+      if(telnetClient.available()) {
+          char c = telnetClient.read();
+          if(c == '\r') {}
+          else if (c != '\n' &&  inIndex < maxInData-1) { inData[inIndex++] = c; } // read char 
+          else { end=true; }
+        }
+    }
+    if(inIndex==0) { return NULL; }    
+    inData[inIndex++] = '\0';
+    return inData;
+  }
+
+  void telnetHttpRequest(char *request) {
+Serial.print("REQUEST:");Serial.println(request);        
+    char *line=telnetReadLine();
+    while(is(line)) {
+      line=telnetReadLine();
+Serial.print("HEAD:");Serial.println(line);      
+    }
+Serial.print("BODY:");
+    while(telnetClient.connected() && telnetClient.available()) { char c = telnetClient.read(); Serial.print(c); } // simple read available body
+Serial.println("REQUEST END");     
+
+  }
+*/
+
+  void telnetClientLoop() {
+    if(!telnetClient) { // Check for incoming clients       
+      telnetClient = telnetServer.accept(); 
+      if(telnetClient) {
+        sprintf(buffer,"telnetClient connect",telnetPort);logPrintln(LOG_DEBUG,buffer);
+        inIndex=0;
+      }
+    }  
+    
+    if (!telnetClient) { return ; } // no client
+    else if(!telnetClient.connected()) { // client close connection
+      logPrintln(LOG_DEBUG,"telnetClient disconnect");
+      telnetClient.stop(); telnetClient=NULL;
+
+    }else if(telnetClient.available()) {
+      char c = telnetClient.read();      
+      if (c != '\n' && c != '\r' && inIndex < maxInData-1) { inData[inIndex++] = c; } // read char 
+      else if(inIndex>0) { // RETURN or maxlength 
+        inData[inIndex++] = '\0';
+        if(equals(inData, "exit")) { 
+          logPrintln(LOG_DEBUG,"telnetClient exit");
+          telnetClient.stop(); telnetClient=NULL; 
+//TODO HTTP        }else if(strncmp(inData, "GET",  3)==0) { telnetHttpRequest(inData); 
+       } else {
+          char* ret=cmdLine(inData);
+          if(is(ret)) { telnetClient.println(ret); }
+          inIndex = 0;
+        }
+      } 
+    }
+  }
+
+  //------------------------------------
+
+  void telnetSetup() {
+    sprintf(buffer,"telnetServer start port:%d",telnetPort);logPrintln(LOG_INFO,buffer);    
+    telnetServer.begin();
+  }
+
+  void telnetLoop() {
+    telnetClientLoop();
+  }
+
+#else 
+  void telnetSetup() {}
+  void telnetLoop() {}
+#endif
+
 
 // Serial Command Line
 
@@ -3183,9 +3373,7 @@ unsigned long *cmdTime = new unsigned long(0);
 int _skipCmd=0; // >0 => number of cmd to skip
 char LINEEND=';';
 
-#define maxInData 150 // max line length
-char inData [maxInData]; // read buffer
-char inIndex = 0; // read index
+
 char prgLine [maxInData]; // prgLine buffer
 
 char* _prg=NULL;
@@ -3206,11 +3394,6 @@ char* appInfo() {
 
 /* convert param to line in buffer */
 char* paramToLine(char *param) {
-//  *buffer='\0';
-//  char* p=cmdParam(&param);
-//  if(is(p)) { append(buffer,p); p=cmdParam(&param); } 
-//  while(is(p)) { append(buffer," "); append(buffer,p); p=cmdParam(&param); }
-
   sprintf(buffer,"%s %s %s %s %s %s %s %s",
     cmdParam(&param),cmdParam(&param),cmdParam(&param),cmdParam(&param),cmdParam(&param),cmdParam(&param),cmdParam(&param),cmdParam(&param)); 
 
@@ -3271,11 +3454,7 @@ char* cmdExec(char *cmd, char **param) {
   else if(equals(cmd, "setup") && isAccess(ACCESS_ADMIN)) { ret=setupEsp(cmdParam(param),cmdParam(param),cmdParam(param),cmdParam(param),cmdParam(param)); }// setup wifi-ssid wifi-pas espPas => save&restart  
 
   else if(equals(cmd, "logLevel")) { ret=setLogLevel(toInt(cmdParam(param))); }  // set mode (e.g. "mode NR")
-  else if(equals(cmd, "log")) { 
-//    sprintf(buffer,"%s %s %s %s %s %s %s %s",
-//    cmdParam(param),cmdParam(param),cmdParam(param),cmdParam(param),cmdParam(param),cmdParam(param),cmdParam(param),cmdParam(param)); 
-//    logPrintln(LOG_INFO,buffer); ret=buffer;}// log  
-    ret=paramToLine(*param); logPrintln(LOG_INFO,ret); } 
+  else if(equals(cmd, "log")) { ret=paramToLine(*param); logPrintln(LOG_INFO,ret); } 
 
   else if(equals(cmd, "save")) { bootSave();  }// write data to eeprom
   else if(equals(cmd, "load")) { bootRead(); }// load data from eprom
@@ -3292,15 +3471,18 @@ char* cmdExec(char *cmd, char **param) {
   else if(equals(cmd, "mqttLog") && isAccess(ACCESS_READ)) { eeBoot.mqttLogEnable=toBoolean(cmdParam(param));   } // enable/disbale mqttLog
   else if(equals(cmd, "mqttPublish") && isAccess(ACCESS_USE)) { mqttPublish(cmdParam(param),cmdParam(param));  } // mqtt send topic MESSAGE
   else if(equals(cmd, "mqttConnect") && isAccess(ACCESS_READ)) { mqttOpen(toBoolean(cmdParam(param)));  }
-  else if(equals(cmd, "mqttAttr") && isAccess(ACCESS_USE)) { mqttAttr(cmdParam(param),toBoolean(cmdParam(param)));  }
+  else if(equals(cmd, "mqttAttr") && isAccess(ACCESS_USE)) { mqttAttr(cmdParam(param),cmdParam(param));  }
+  else if(equals(cmd, "mqttDel") && isAccess(ACCESS_USE)) { mqttDel(cmdParam(param));  }
   else if(equals(cmd, "mqtt")) { ret=mqttSet(cmdParam(param));  }      // set mqtt (e.g. "mqtt" or "mqtt mqtt://admin:pas@192.168.1.1:1833") 
+
+  else if(equals(cmd, "params") && isAccess(ACCESS_USE)) { ret=paramsInfo();  }
+  else if(equals(cmd, "paramsClear") && isAccess(ACCESS_USE)) { paramsClear(toInt(cmdParam(param)));  }
 
   else if(equals(cmd, "run")) { ret=cmdFile(cmdParam(param)); } // run prg from file 
   else if(equals(cmd, "end")) { ret=cmdFile(NULL); }// stop prg
   else if(equals(cmd, "stop")) { ret=prgStop(); } // stop/halt prg
   else if(equals(cmd, "continue")) { ret=prgContinue(); } // continue prg
   else if(equals(cmd, "next")) { ret=prgNext(cmdParam(param)); } // next prg step
-//  else if(equals(cmd, "error")) { cmdError(cmdParam(param));  }// end prg with error
   else if(equals(cmd, "error")) { cmdError(paramToLine(*param));  }// end prg with error
 
   else if(equals(cmd, "fsDir") && isAccess(ACCESS_USE)) { ret=fsDir(toString(cmdParam(param))); }
@@ -3336,13 +3518,6 @@ char* cmdExec(char *cmd, char **param) {
   return ret;
 }
 
-/* log unkown cmd and return EMPTY
-char* cmdUnkown(char* cmd,char *param) {
-  sprintf(buffer,"unkown '%s'",cmd); logPrintln(LOG_ERROR,buffer);
-  return EMPTY;
-}
-*/
-
 //------------------------------------------------------------------------------------------------
 
 unsigned long *_prgTime = new unsigned long(0);
@@ -3361,34 +3536,21 @@ void cmdError(char *error) {
 /* end of line (NULL = no line)*/
 char* lineEnd(char* ptr) {
   if(ptr==NULL || *ptr=='\0') { return NULL; }   
-//  ptr++;
   while(*ptr!=';' && *ptr!='\n' && *ptr!='\r' && *ptr!='\0') { 
-    ptr++; 
-//Serial.print(*ptr);    
+    ptr++;   
   }
   return ptr;
 } 
 
 
-/** goto key in prg */
+/* goto key in prg */
 boolean cmdGoto(char *findPtr,char *p0) { 
   if(findPtr==NULL) { cmdError("ERROR findPtr missing"); return false; } 
   else if(!is(p0)) { sprintf(buffer,"ERROR goto dest missing"); cmdError(buffer); return false; } 
   if(isInt(p0)) { _skipCmd=toInt(p0); return true;}
-/*
-  while(true) {
-    char *find = strstr(findPtr, p0);
-    if(find==NULL) { return "goto unkown"; }
-    else if((find-1)[0]==LINEEND) { _prgPtr=find; return true;  }
-    findPtr=find+1;   
-  }   
-  return false;
-*/
-//Serial.print(" findgoto:");Serial.println(p0);
 
   char *find=findPtr;
   while(find!=NULL) {    
-//Serial.print("line:");Serial.print(find);Serial.print(" startWith:"); Serial.print(p0); Serial.print(" ok:");Serial.println(strcmp(find,p0));
     if(startWith(find,p0)) { _prgPtr=find; return true;  }    
     find=lineEnd(find); 
     if(find!=NULL) { find++; }
@@ -3428,14 +3590,11 @@ boolean gotoSubEnd(char *prgPtr) {
 /* start sub on "ok" otherweise skip until }  */
 boolean startSub(char *param,boolean ok) {  
   char *cmdOnTrue=nextParam(&param);
-//sprintf(buffer,"startSub c:%s p:%s ok:%d",to(cmdOnTrue),to(param),ok); logPrintln(LOG_SYSTEM,buffer);
 
-  if(equals(cmdOnTrue,"{")) {
-//sprintf(buffer,"  startSub sub %d",ok); logPrintln(LOG_SYSTEM,buffer);        
+  if(equals(cmdOnTrue,"{")) {     
     if(ok)  { return true; } // on true => execute next line 
     else { return gotoSubEnd(_prgPtr); }
   }else {
-//sprintf(buffer,"  startSub cmd c:%s p:%s",to(cmdOnTrue),to(param)); logPrintln(LOG_SYSTEM,buffer);    
     if(ok) { char* ret=cmdExec(cmdOnTrue,&param); return true; } // on true => execute cmd 
     else { return false; }
   }
@@ -3452,7 +3611,6 @@ boolean repeatSub(char *param) {
 /* if RULE {} or else cmd */
 boolean cmdUntil(char **param) {
   boolean ok=toBoolean(calcParam(param));
-//Serial.print("cmdUntil "); Serial.println(ok); 
   if(!ok) { return repeatSub(*param); }
   else { return false; }
 }
@@ -3460,25 +3618,20 @@ boolean cmdUntil(char **param) {
 /* if RULE {} or else cmd */
 boolean cmdIf(char **param) {  
   _lastIf=toBoolean(calcParam(param));
-//Serial.print("if ");Serial.println(_lastIf);      
   return startSub(*param,_lastIf);
 }
 
 /* elseif RULE {} or else cmd */
 boolean cmdElseIf(char **param) {  
-//Serial.print("elseif ");Serial.println(_lastIf);    
   if(!_lastIf) { 
-//Serial.print("  elseif:");Serial.println(param);    
     _lastIf=toBoolean(calcParam(param));
-//Serial.print("  _lastIf:");Serial.println(_lastIf);        
 }
   return startSub(*param,_lastIf);
 }
 
 /* else {} or else cmd */
 boolean cmdElse(char **param) {  
-  boolean startElse=!_lastIf; if(!_lastIf) { _lastIf=true; }
-//Serial.print("else ");Serial.println(startElse);      
+  boolean startElse=!_lastIf; if(!_lastIf) { _lastIf=true; }  
   return startSub(*param,startElse);
 }
 
@@ -3494,55 +3647,14 @@ boolean pIsNumber(char *param) {
 }
 
 boolean pIsCalc(char *param) {
-  if(param==NULL) { 
-//Serial.print(" pIsCalc null");Serial.println("");    
+  if(param==NULL) {   
     return false; }
-//Serial.print(" pIsCalc:");Serial.println(*param);        
   if(*param=='<' || *param=='>' || *param=='=' || *param=='!') { return true; }
   else if(*param=='&' || *param=='|' ) { return true; }
   else if((*param=='+' || *param=='-') && (*(param+1)<'0' || *(param+1)>'9')) { return true; } // +- without number (e.g. -1) 
   else if(*param=='*' || *param=='/') { return true; }
   else { return false; }
 }
-
-
-
-//------------------------------------
-
-
-
-/* resolve/caclute param of if 
-boolean calcIf(char **param) {
-  char *a=cmdParam(param);
-  char *match=cmdParam(param);
-  char *b=cmdParam(param);  
-  int ai=toInt(a),bi=toInt(b);
-  boolean ok=false;
-
-  if(equals(match,"==")) { ok=(ai==bi); }
-  else if(equals(match,"!=")) { ok=(ai!=bi); }
-  else if(equals(match,">")) { ok=(ai>bi); }
-  else if(equals(match,">=")) { ok=(ai>=bi); }
-  else if(equals(match,"<")) { ok=(ai<bi); }
-  else if(equals(match,"<=")) { ok=(ai<=bi); }
-  else { sprintf(buffer,"ERROR match unkown"); cmdError(buffer); return false; }
-
-  sprintf(buffer,"calc a:%s match:%s b:%s => %d (ai:%d bi:%d)",a,match,b,ok,ai,bi); logPrintln(LOG_DEBUG,buffer);
-  return ok;
-}
-*/
-
-/*
-char* attrCalc(char *a,char *b,char *c) {
-  if(!is(b)) { return a; }
-  else if(equals(b,"+")) { int s=toInt(a)+toInt(c); sprintf(buffer,"%d",s); }
-  else if(equals(b,"-")) { int s=toInt(a)-toInt(c); sprintf(buffer,"%d",s); }
-  else if(equals(b,"*")) { int s=toInt(a)*toInt(c); sprintf(buffer,"%d",s); }
-  else if(equals(b,"/")) { int s=toInt(a)/toInt(c); sprintf(buffer,"%d",s); }
-  else {  sprintf(buffer,"ERROR unkown '%s' calc",b); cmdError(buffer); return EMPTY; }
-  return buffer;
-}
-*/
 
 //------------------------------------
 
@@ -3555,62 +3667,18 @@ char* cmdSet(char *key,char **param) {
   return ret;
 }
 
-/* remove '$' from key */
-char* _toAttr(char *key) {
-  if(!is(key)) { return EMPTY; } else if(*key=='$') { key++; }
-  return key;
-}
 
-boolean attrHave(char *key) { return attrMap.find(_toAttr(key))!=-1; }
-char* attrGet(char *key) {  return (char*)attrMap.get(_toAttr(key)); }
-void attrSet(char *key,String value) { 
-  char *v=(char*)value.c_str(); 
-  attrMap.replace(_toAttr(key),v,strlen(v)); 
-} 
-void attrSet(char *key,char *value) { attrMap.replace(_toAttr(key),value,strlen(value));  }
-void attrDel(char *key) { attrMap.del(_toAttr(key)); }
-char* attrInfo() {
-  sprintf(buffer,"");
-  for(int i=0;i<attrMap.size();i++) {  
-    char *key=attrMap.key(i);
-    char *value=(char*)attrMap.get(i);
-    if(is(key) && is(value)) {
-      sprintf(buffer+strlen(buffer),"attr %s \"%s\"\n",key,value);
-    }
-  }
-  return buffer;
-}
-void attrClear(char *prefix) { attrMap.clear(prefix); }
-
-/** get sys attribute */
-char* sysAttr(char *name) {
-  int d=0; char* s;
-  if(!is(name)) { return EMPTY; }
-  else if(equals(name,"timestamp")) { d=_timeMs;  }
-  else if(equals(name,"time")) { s=getTime();  }
-  else if(equals(name,"date")) { s=getDate(); }
-  else if(equals(name,"ip")) { s=(char*)appIP.c_str(); }
-  else if(equals(name, "freeHeap")) { d=ESP.getFreeHeap(); }// show free heap
-  else { return EMPTY; }
-
-  if(is(s)) { sprintf(paramBuffer,"%s",s); } else { sprintf(paramBuffer,"%d",d); }
-  return paramBuffer;   
-}
 
 //--------------------------------
 
 int xCalc(int ai,char *calc,char **param) {   
-//Serial.print("xCalc ai:");Serial.println(ai); 
-//if(is(calc)) { Serial.print(" calc:");Serial.println(calc); }
   if(!is(calc)) { return ai;}
   else if(equals(calc,"++")) { return ai+1; }
   else if(equals(calc,"--")) { return ai-1; }
 
   int ret=0;
   char* bb=cmdParam(param);
-//Serial.print("  bb:");Serial.println(bb);  
-  int bi=toInt(bb);  
-//Serial.print("  bi:");Serial.println(bi);    
+  int bi=toInt(bb);   
   if(equals(calc,"==")) { ret=ai==bi; }
   else if(equals(calc,"!=")) { ret=ai!=bi; }
   else if(equals(calc,">")) { ret=ai>bi; }
@@ -3629,9 +3697,7 @@ int xCalc(int ai,char *calc,char **param) {
   else if(equals(calc,">>")) { ret=ai >> bi; }
   else if(equals(calc,"<<")) { ret=ai << bi; }
 
-//  else { cmdError("ERROR unkown calc"); ret=0; }
   else { sprintf(buffer,"ERROR unkown calc '%s'",calc); cmdError(buffer); ret=0; }
-//  sprintf(buffer,"calc a:%s calc:%s b:%s => %d",ai,calc,bi,ret); logPrintln(LOG_DEBUG,buffer);  
   return ret;
 }
 
@@ -3700,7 +3766,6 @@ char* nextParam(char **pp) {
 
 /* parse and execute a cmd line */
 char* cmdLine(char* line) {  
-//  return cmdParam(&line);
   char* cmd=nextParam(&line);
   return cmdExec(cmd,&line);
 }
@@ -3710,30 +3775,13 @@ char* cmdLine(char* line) {
 /* get next line as a copy of prg  */
 char *nextCmd() {
   if(_prgPtr==NULL) { return NULL; }
-/*  
-  else if(*_prgPtr=='\0') { return NULL; } // end found
-  char *line_end = strchr(_prgPtr, ';');
-  if(line_end!=NULL) { 
-    int len=line_end-_prgPtr;
-    if(len<=0) { _prgPtr+=len+1; return EMPTY; }
-    else if(len>=maxInData-1) { len=maxInData-1; }
-    memcpy( prgLine, _prgPtr, len); prgLine[len]='\0';
-    _prgPtr+=len+1; // set next pos
-    return prgLine;
-  }else {
-    int len=strlen(_prgPtr);
-    memcpy( prgLine, _prgPtr, len+1); //prgLine[len]='\0';
-    _prgPtr+=len; // set end pos
-    return prgLine;
-  }
-*/
+
   char *line_end=lineEnd(_prgPtr);
   if(line_end==NULL)  { return NULL; }
   int len=line_end-_prgPtr;
   if(len<=0) { _prgPtr+=len+1; return EMPTY; }
   memcpy( prgLine, _prgPtr, len); prgLine[len]='\0'; 
   _prgPtr+=len; // set next pos
-//Serial.print("line:");Serial.print(prgLine);Serial.println(" len:");  Serial.println(len);
   return prgLine;
 }
 
@@ -3771,8 +3819,6 @@ char* cmdPrg(char* prg) {
   if(_prg!=NULL) { delete[] _prg; _prg=NULL; _prgPtr=NULL; } // clear old prg
   if(!is(prg)) { return "prg missing"; }
   _prg=prg;
-//  replace(_prg,'\r',';'); // 
-//  replace(_prg,'\n',';'); // newLine => cmd End  
   _prgPtr=_prg;  // set ptr to prg start
   *_prgTime=0; // set prgTime to run
   return prgLoop();   
@@ -3805,13 +3851,17 @@ void cmdRead() {
     if (Serial.available() > 0) {
     char c = Serial.read();
     if (c != '\n' && c != '\r' && inIndex < maxInData-1) { inData[inIndex++] = c; } // read char 
-    else { // RETURN or maxlength 
+    else if(inIndex>0) { // RETURN or maxlength 
       inData[inIndex++] = '\0';
-      String ret=cmdLine(inData);
+      char* ret=cmdLine(inData);
       if(logLevel!=LOG_DEBUG) { logPrintln(LOG_SYSTEM,ret); }      
       inIndex = 0;
     }
   }
+}
+
+void cmdRead(char c) {
+
 }
 
 //--------------------------
@@ -3838,6 +3888,7 @@ void cmdLoop() {
 
 
 
+
 void cmdOSSetup() {
   if(serialEnable) { 
     delay(1); Serial.begin(115200); 
@@ -3854,6 +3905,7 @@ void cmdOSSetup() {
   if(isModeNoSystemError()) {
     wifiSetup();  
     otaSetup();
+    telnetSetup();
   }
 
   if(isModeOk()) {
@@ -3873,6 +3925,7 @@ void cmdOSLoop() {
   if(isModeNoSystemError()) {
     wifiLoop();
     otaLoop();
+    telnetLoop();
   }
 
   if(isModeOk()) {
@@ -3882,6 +3935,7 @@ void cmdOSLoop() {
   }
   delay(0);
 }
+
 
 
 

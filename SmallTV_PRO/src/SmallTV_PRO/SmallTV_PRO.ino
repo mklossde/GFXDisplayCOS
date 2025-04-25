@@ -5,7 +5,7 @@
 // GFXDisplayCOS - http://github.com/mklossde/GFXDisplayCOS
 // CmdOS - http://github.com/mklossde/CmdOs
 
-#include <ESPAsyncWebServer.h>
+
 #include <AnimatedGIF.h>
 
 #include <privatdata.h>
@@ -24,17 +24,18 @@ const char *mqtt_default = PRIVAT_MQTTSERVER;     // define in privatdata.h
 byte MODE_DEFAULT=20; //  MODE_PRIVAT=20=load privat values, use wifi_ssid_default and wifi_pas_default and mqtt_default
 //byte MODE_DEFAULT=0; // EE_MODE_FIRST=0=RESET on start
 
-boolean serialEnable=true; // enable/disbale serial log 
-
+boolean serialEnable=true; // enable/disbale serial in/out
+boolean bootSafe=true;    // enable/disbale boot safe
 boolean wifiEnable=true;  // enable/disbale wifi
-boolean webEnable=true;    // enable/disbale http server
-boolean mdnsEnable=false;   // enable/disable mDNS detection 
-boolean bootSafe=false;    // enable/disbale boot safe
 
-#define ntpEnable false     // enable time server
+#define mdnsEnable false   // enable/disable mDNS detection 
+
+#define webEnable true    // enable/disbale http server
+#define ntpEnable true     // enable time server
 #define enableFs true         // enable fs / SPIFFS
 
 #define netEnable false       // enable/disbale network ping/dns/HttpCLient 
+#define telnetEnable true       // enable/disbale telnet
 #define webSerialEnable false // enable/disbale web serial
 #define mqttEnable true      // enable/disbale mqtt
 #define mqttDiscovery true   // enable mqtt Homeassistant Discovery  
@@ -62,12 +63,15 @@ int swTimeBase=100;     // unprell (max state change time) and tick time base (e
 byte swTickShort=2;     // swTickShort*swTimeBase => 5*100 => 500ms;
 byte swTickLong=5;      // swTickLong*swTimeBase => 10*100 => 1s;
 
-
-int _webPort = 80;
-AsyncWebServer server(_webPort);
-
 // app
 boolean displayEnable=true; // enable display
+
+int _webPort = 80;
+ 
+#if webEnable
+  #include <ESPAsyncWebServer.h>
+  AsyncWebServer webServer(_webPort);
+#endif
 
 //--------------------------------------------------------------
 
@@ -81,8 +85,10 @@ char* appCmd(char *cmd, char **param) {
 
 /* callback to add app web pages */
 void webApp() {
-  server.on("/app", HTTP_GET, [](AsyncWebServerRequest *request) { matrixWeb(request); });
-  server.on("/appSetup", HTTP_GET, [](AsyncWebServerRequest *request) { matrixWebSetup(request); });
+  #if webEnable
+    webServer.on("/app", HTTP_GET, [](AsyncWebServerRequest *request) { matrixWeb(request); });
+    webServer.on("/appSetup", HTTP_GET, [](AsyncWebServerRequest *request) { matrixWebSetup(request); });
+  #endif
 }
 
 //--------------------------------------------------------------

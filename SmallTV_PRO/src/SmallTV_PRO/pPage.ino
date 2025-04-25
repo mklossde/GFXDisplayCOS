@@ -79,7 +79,7 @@ byte pageSet(char *page) {
 }
 
 
-/** add prg as nes page */
+/* add prg as nes page */
 char* pageAdd(char *file) {
   if(is(file)) {
     char *f=copy(file);

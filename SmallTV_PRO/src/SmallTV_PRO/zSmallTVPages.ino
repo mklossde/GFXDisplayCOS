@@ -130,13 +130,13 @@ char *stateAttr="homeassistant2/switch/tasmota/state";
 
 /* show page state */
 void pageState() {  
-  mqttAttr(stateAttr,true);
+  mqttAttr("state",stateAttr);
 
   pageClear();
   drawText(10,10,fontSize,"state",col_red);
 
   if(is(stateAttr)) { 
-    char *val=attrGet(stateAttr);
+    char *val=attrGet("state");
     drawText(10,30,fontSize,stateAttr,col_red);
     drawText(10,100,fontSize,val,col_green);
   }
