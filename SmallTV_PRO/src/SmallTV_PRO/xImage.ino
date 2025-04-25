@@ -186,27 +186,7 @@ void drawUrl(String url,int x,int y,boolean direct) {
   }
 }
 
-/* draw upload */
-void drawUpload(AsyncWebServerRequest *request, String file, size_t index, uint8_t *data, size_t len, bool final) {
-  if(!isWebAccess(ACCESS_READ)) { request->send(403, "text/html"); }
-  sprintf(buffer, "upload %s %d index:%d", file.c_str(), len, index);logPrintln(LOG_DEBUG,buffer);
 
-  File ff;
-  if (!index) {     
-    FILESYSTEM.remove(rootDir + uploadFile); // remove old file 
-    ff = SPIFFS.open(rootDir + uploadFile, FILE_WRITE); 
-  }else { ff = SPIFFS.open(rootDir + uploadFile, FILE_APPEND); }
-
-  for (size_t i = 0; i < len; i++) { ff.write(data[i]); }
-  ff.close();
-  if (final) {
-    sprintf(buffer, "uploaded %s => %s %d", file.c_str(),uploadFile, (index + len)); logPrintln(LOG_DEBUG,buffer);
-    char* name=copy(file); 
-    drawFile(uploadFile,name,0,0,true);
-    delete name;
-    request->redirect("/app");
-  }
-}
 
 /* stop gif play */
 void drawFileClose() {

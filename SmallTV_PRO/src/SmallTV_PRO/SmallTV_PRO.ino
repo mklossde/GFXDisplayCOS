@@ -11,7 +11,7 @@
 #include <privatdata.h>
 
 const char *prgTitle = "SmallTVPROCOS";
-const char *prgVersion = "V0.2.0";
+const char *prgVersion = "V0.3.0";
 
 const char* user_admin = "admin"; // default user
 char user_pas[]="admin";   // default espPas
@@ -30,12 +30,12 @@ boolean wifiEnable=true;  // enable/disbale wifi
 
 #define mdnsEnable false   // enable/disable mDNS detection 
 
-#define webEnable true    // enable/disbale http server
-#define ntpEnable true     // enable time server
+#define webEnable false    // enable/disbale http server
+#define ntpEnable false     // enable time server
 #define enableFs true         // enable fs / SPIFFS
 
 #define netEnable false       // enable/disbale network ping/dns/HttpCLient 
-#define telnetEnable true       // enable/disbale telnet
+#define telnetEnable false       // enable/disbale telnet
 #define webSerialEnable false // enable/disbale web serial
 #define mqttEnable true      // enable/disbale mqtt
 #define mqttDiscovery true   // enable mqtt Homeassistant Discovery  

@@ -92,7 +92,7 @@ void pageEsp() {
   drawText(100,5,fontSize,buffer,col_white);
   // Heap
   drawText(1,20,fontSize,"Heap",col_red);
-  drawFull(100,20,100,10,2,(int)ESP.getFreeHeap(),150000,col_red,col_white);
+  drawFull(100,20,100,10,2,(int)ESP.getFreeHeap(),freeHeapMax,col_red,col_white);
   sprintf(buffer,"%d",ESP.getFreeHeap()); 
 //  drawText(45,10,col_red,1,buffer);
 // sketch
@@ -130,22 +130,22 @@ char *stateAttr="homeassistant2/switch/tasmota/state";
 
 /* show page state */
 void pageState() {  
-  mqttAttr("state",stateAttr);
+  mqttAttr("value",stateAttr);
+  pageStateLoop();
+}
 
+void pageStateLoop() {
   pageClear();
   drawText(10,10,fontSize,"state",col_red);
 
-  if(is(stateAttr)) { 
-    char *val=attrGet("state");
+  if(is(stateAttr)) {     
     drawText(10,30,fontSize,stateAttr,col_red);
+    char *val=attrGet("value");
+sprintf(buffer,"val:%s",to(val)); logPrintln(LOG_DEBUG,buffer);    
     drawText(10,100,fontSize,val,col_green);
   }
 
   draw();  
-}
-
-void pageStateLoop() {
-  pageState();
 }
 
 //-------------------------------------------------------------------------
