@@ -84,17 +84,18 @@ char* matrixCmd(char *cmd, char **param) {
     
     // drawFull x y w h p value max, c1,c2 - draw a full-element at x,y with w,h. full=100/max*value will be in color c2 and offset p
     else if(equals(cmd, "drawFull")) { drawFull(toInt(cmdParam(param)),toInt(cmdParam(param)),toInt(cmdParam(param)),toInt(cmdParam(param)),toInt(cmdParam(param)),toInt(cmdParam(param)),toInt(cmdParam(param)),toInt(cmdParam(param)),toInt(cmdParam(param))); return EMPTY; }
-    else if(equals(cmd, "drawOn")) { drawOn(toInt(cmdParam(param)),toInt(cmdParam(param)),toInt(cmdParam(param)),toInt(cmdParam(param)),toBoolean(cmdParam(param)),toInt(cmdParam(param)),toInt(cmdParam(param))); return EMPTY; }
-    else if(equals(cmd, "drawGauge")) { drawGauge(toInt(cmdParam(param)),toInt(cmdParam(param)),toInt(cmdParam(param)),toInt(cmdParam(param)),toInt(cmdParam(param)),toInt(cmdParam(param)),toInt(cmdParam(param)),toInt(cmdParam(param))); return EMPTY; }
+    else if(equals(cmd, "drawOn")) { drawOn(toInt(cmdParam(param)),toInt(cmdParam(param)),toInt(cmdParam(param)),toInt(cmdParam(param)),cmdParam(param),toInt(cmdParam(param)),toInt(cmdParam(param))); return EMPTY; }
+    else if(equals(cmd, "drawGauge")) { drawGauge(toInt(cmdParam(param)),toInt(cmdParam(param)),toInt(cmdParam(param)),toInt(cmdParam(param)),toInt(cmdParam(param))
+      ,cmdParam(param),cmdParam(param),cmdParam(param),cmdParam(param)
+      ,toInt(cmdParam(param)),toInt(cmdParam(param)),toInt(cmdParam(param))); return EMPTY; }
 
-    // valueFull x y value max c1 c2 - show value with name at full
-    else if(equals(cmd, "valueFull")) { valueFull(toInt(cmdParam(param)),toInt(cmdParam(param)),cmdParam(param),toInt(cmdParam(param)),toInt(cmdParam(param)),toInt(cmdParam(param)),toInt(cmdParam(param))); return EMPTY; }
-    else if(equals(cmd, "valueOn")) { valueOn(toInt(cmdParam(param)),toInt(cmdParam(param)),cmdParam(param),toInt(cmdParam(param)),toInt(cmdParam(param)),toInt(cmdParam(param)),toInt(cmdParam(param))); return EMPTY; }
-    else if(equals(cmd, "valueGauge")) { valueGauge(toInt(cmdParam(param)),toInt(cmdParam(param)),cmdParam(param),toInt(cmdParam(param)),toInt(cmdParam(param)),toInt(cmdParam(param)),toInt(cmdParam(param))); return EMPTY; }
+    // drawValue type x y value min max c1 c2 - show value with name at full
+    else if(equals(cmd, "drawValue")) { drawValue(toInt(cmdParam(param)),toInt(cmdParam(param)),toInt(cmdParam(param)),toInt(cmdParam(param)),
+        cmdParam(param),cmdParam(param),cmdParam(param),cmdParam(param),cmdParam(param),
+        toInt(cmdParam(param)),toInt(cmdParam(param)),toInt(cmdParam(param))); return EMPTY; }
 
-
-    // drawText x y c size text - draw text at x y with size 
-    else if(equals(cmd, "drawText")) { drawText(toInt(cmdParam(param)),toInt(cmdParam(param)),toInt(cmdParam(param)),cmdParam(param),toInt(cmdParam(param))); return EMPTY; }
+    // drawText x y c size text - draw text at x y with size  align
+    else if(equals(cmd, "drawText")) { drawText(toInt(cmdParam(param)),toInt(cmdParam(param)),toInt(cmdParam(param)),cmdParam(param),toInt(cmdParam(param)),toInt(cmdParam(param))); return EMPTY; }
 
 
     // pages
@@ -124,9 +125,9 @@ char* matrixCmd(char *cmd, char **param) {
     else if(equals(cmd, "drawIcon")) { drawIcon(toInt(cmdParam(param)),toInt(cmdParam(param)),toInt(cmdParam(param)),toInt(cmdParam(param)),toInt(cmdParam(param)),cmdParam(param)); return EMPTY; }
   
     // drawTime x y c - draw time (format hh:mm:ss) at x,y of color c 
-    else if(equals(cmd, "drawTime")) { drawTime(toInt(cmdParam(param)),toInt(cmdParam(param)),toInt(cmdParam(param)),toInt(cmdParam(param))); return EMPTY; }
+    else if(equals(cmd, "drawTime")) { drawTime(toInt(cmdParam(param)),toInt(cmdParam(param)),toInt(cmdParam(param)),toInt(cmdParam(param)),toInt(cmdParam(param))); return EMPTY; }
     // drawDate x y c - draw date (format dd.mm.yyyy) at x,y of color c
-    else if(equals(cmd, "drawDate")) { drawDate(toInt(cmdParam(param)),toInt(cmdParam(param)),toInt(cmdParam(param)),toInt(cmdParam(param))); return EMPTY; }
+    else if(equals(cmd, "drawDate")) { drawDate(toInt(cmdParam(param)),toInt(cmdParam(param)),toInt(cmdParam(param)),toInt(cmdParam(param)),toInt(cmdParam(param))); return EMPTY; }
 
     // effect type step speed a b - start effect type with n-steps with speed in ms between steps
     else if(equals(cmd, "effect")) { effectStart(toInt(cmdParam(param)),toInt(cmdParam(param)),toInt(cmdParam(param)),toInt(cmdParam(param)),toInt(cmdParam(param))); return EMPTY;  } // start effect 

@@ -26,19 +26,19 @@ void pageTitle() {
   int16_t  x1, y1; 
   display->getTextBounds(prgTitle, 0, 0, &x1, &y1, &w, &h);
   x=wh-w/2, y=1;
-  drawText(x,y,fontSize,prgTitle,col_red);   
+  drawText(x,y,fontSize,prgTitle,col_red,-1);   
   // version
-  drawText(1,pixelY-(8*fontSize),fontSize,prgVersion,col_red);   
+  drawText(1,pixelY-(8*fontSize),fontSize,prgVersion,col_red,-1);   
   // FreeHeap
   drawFull(pixelX-30,100,20,100,2,(int)ESP.getFreeHeap(),150000,col_red,col_white);
 
   if(eeMode!=EE_MODE_OK) {
     fillRect(pixelX-(8*fontSize)-5,pixelY-(8*fontSize)-1,pixelX,pixelY,col_red);
-    sprintf(buffer, "%d", eeMode); drawText(pixelX-12,pixelY-8,fontSize,buffer,col_black);  
+    sprintf(buffer, "%d", eeMode); drawText(pixelX-12,pixelY-8,fontSize,buffer,col_black,-1);  
   }
 
   if(is(appIP)) {  
-    drawText(1,(8*fontSize)+20,fontSize,(char*)appIP.c_str(),col_red);   
+    drawText(1,(8*fontSize)+20,fontSize,(char*)appIP.c_str(),col_red,-1);   
   }
 
   draw();
@@ -89,18 +89,18 @@ void pageEsp() {
 
   uint32_t chipid=espChipId(); // or use WiFi.macAddress() ?
   snprintf(buffer,20, "%08X",chipid);
-  drawText(100,5,fontSize,buffer,col_white);
+  drawText(100,5,fontSize,buffer,col_white,-1);
   // Heap
-  drawText(1,20,fontSize,"Heap",col_red);
+  drawText(1,20,fontSize,"Heap",col_red,-1);
   drawFull(100,20,100,10,2,(int)ESP.getFreeHeap(),freeHeapMax,col_red,col_white);
   sprintf(buffer,"%d",ESP.getFreeHeap()); 
 //  drawText(45,10,col_red,1,buffer);
 // sketch
-  drawText(1,40,fontSize,"Sketch",col_red);
+  drawText(1,40,fontSize,"Sketch",col_red,-1);
   drawFull(100,40,100,10,2,(int)ESP.getSketchSize(),(int)ESP.getFreeSketchSpace(),col_red,col_white);
   // bootType
-  drawText(1,60,fontSize,"CmdOs",col_red);
-  drawText(100,60,fontSize,bootType,col_white);
+  drawText(1,60,fontSize,"CmdOs",col_red,-1);
+  drawText(100,60,fontSize,bootType,col_white,-1);
 //  // mac
 //  uint8_t baseMac[6]; esp_read_mac(baseMac, ESP_MAC_WIFI_STA);
 //  sprintf(buffer,"%02x:%02x:%02x:%02x:%02x:%02x\n",baseMac[0], baseMac[1], baseMac[2],baseMac[3], baseMac[4], baseMac[5]);
@@ -136,13 +136,13 @@ void pageState() {
 
 void pageStateLoop() {
   pageClear();
-  drawText(10,10,fontSize,"state",col_red);
+  drawText(10,10,fontSize,"state",col_red,-1);
 
   if(is(stateAttr)) {     
-    drawText(10,30,fontSize,stateAttr,col_red);
+    drawText(10,30,fontSize,stateAttr,col_red,-1);
     char *val=attrGet("value");
 sprintf(buffer,"val:%s",to(val)); logPrintln(LOG_DEBUG,buffer);    
-    drawText(10,100,fontSize,val,col_green);
+    drawText(10,100,fontSize,val,col_green,-1);
   }
 
   draw();  
@@ -153,9 +153,9 @@ sprintf(buffer,"val:%s",to(val)); logPrintln(LOG_DEBUG,buffer);
 
 void pageTimeDraw() {
   fillRect(0,50,240,25,col_black);
-  drawTime(50,50,3,col_red);
+  drawTime(50,50,3,col_red,-1);
   fillRect(0,140,240,25,col_black);
-  drawDate(30,140,3,col_red);  
+  drawDate(30,140,3,col_red,-1);  
   drawLine(20,100,220,100,col_white);
   draw();
 }

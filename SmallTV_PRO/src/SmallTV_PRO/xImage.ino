@@ -174,9 +174,7 @@ void drawFile(char *name,char *suffix,int x,int y,boolean direct) {
   }else { sprintf(buffer,"drawFile suffix unkown '%s'", suffix);logPrintln(LOG_ERROR,buffer); }
 } 
 
-//String uploadFile=String("upload");
-char* uploadFile="/upload_file";
-String URL_FILE="/upload_url";
+
 
 void drawUrl(String url,int x,int y,boolean direct) {
   boolean ok=fsDownload(url,url,-1);

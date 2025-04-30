@@ -30,7 +30,7 @@ boolean wifiEnable=true;  // enable/disbale wifi
 
 #define mdnsEnable false   // enable/disable mDNS detection 
 
-#define webEnable false    // enable/disbale http server
+#define webEnable true    // enable/disbale http server
 #define ntpEnable false     // enable time server
 #define enableFs true         // enable fs / SPIFFS
 

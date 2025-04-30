@@ -74,10 +74,18 @@ void fillRoundRect(uint16_t x0, uint16_t y0, uint16_t w, uint16_t h, uint16_t ra
 void drawChar(uint16_t x, uint16_t y, char c, uint16_t color, uint16_t bg, uint8_t size) { 
   if(!_displaySetup) { return ; }
   if(color<0) { color=_color; } display->drawChar(x,y,c,color,bg,size); }
-void drawText(int x,int y, int size, const char *str,int color) {
+void drawText(int x,int y, byte size, const char *str,int color, int align) {
   if(!_displaySetup) { return ; }
-  if(color<0) { color=_color; }
   display->setTextSize(size);     // size 1 == 8 pixels high
+  if(align<0) { x-=align; }
+  else {
+    int16_t  x1, y1; 
+    uint16_t w,h;
+    display->getTextBounds(str, 0, 0, &x1, &y1, &w, &h);
+    if(align==0) { x-=(w/2); }
+    else { x-=w+align; }
+  }
+  if(color<0) { color=_color; }
   display->setTextWrap(true); // Don't wrap at end of line - will do ourselves
   display->setCursor(x,y);    // start at top left, with 8 pixel of spacing
   display->setTextColor(color); // set color
@@ -212,75 +220,18 @@ void drawArc(int x, int y, int segmentStep, int seg_start, int seg_count, int rx
   }
 }
 
-/* draw full-bar of value% of max% (e.g. 5 10 => half) e.g. drawFull 10 40 5 20 1 10 50 888 2016 */
-void drawFull(int x,int y,int w,int h,int p,int value,int max,int col1,int col2) {
-  if(col1==-1) { col1=_color; }  if(col2==-1) { col2=_color; }  
-  drawRect(x,y,w,h,col1);  
-  if(w>h) { 
-    float step=(float)w/(float)max; int w2=(int)((float)value*step);
-    if(w2>p*2) {fillRect(x+p,y+p,w2-(p*2),h-(p*2),col2); }
-  } else { 
-    float step=(float)h/(float)max; int w2=(int)((float)value*step);
-    if(w2>p*2) { fillRect(x+p,y+p+h-w2, w-(p*2),w2-(p*2),col2); }
-  } 
-}
-
-/* drawGauge 10 10 5 1 5 10 888 2016 */
-void drawGauge(int x,int y,int w,int p,int value,int max,int col1,int col2) {
-  if(col1==-1) { col1=_color; } 
-  drawArc(x,y, 1, 270, 180, w,w, 0, col1);
-  drawLine(x-w,y,x+w,y,col1);
-  int v=(180/max)*value;
-  drawArc(x,y,1,270+v,2,w-p,w-p,w,col2);
-}
-/* draw on button e.g. drawOn 10 10 5 2 1 -1 2016 */
-void drawOn(int x,int y,int w,int p,boolean on,int col1,int col2) {
-  drawCircle(x,y,w,col1);
-  if(on) { fillCircle(x,y,w-p,col2); }
-}
-
-//-------------------------------------------
-
-/* draw value with name+value */
-void drawValue(int x,int y,char *text,int value,int max,int col1,int col2) {
-  drawText(x,y,1,text,_color);
-  drawText(x,y+8,1,to(value),col1);
-  drawLine(x,y+16,x+63,y+16,_color);
-}
-
-/* draw name+value+full */
-void valueFull(int x,int y,char *text,int value,int max,int col1,int col2) {
-  drawValue(x,y,text,value,max,col1,col2);
-  if(value<0) { col1=col2; value=value*-1; } 
-  drawFull(x+40,y,20,8,1,value,max,_color,col1);
-}
-
-/* draw name+value+on (on=vlaue>max) */
-void valueOn(int x,int y,char *text,int value,int max,int col1,int col2) {
-  drawValue(x,y,text,value,max,col1,col2);
-  if(value>max) { col1=col2; }
-  drawOn(x+53,y+7,5,1,true,_color,col1);
-}
-
-/* draw name+value+guage */
-void valueGauge(int x,int y,char *text,int value,int max,int col1,int col2) {
-  drawValue(x,y,text,value,max,col1,col2);
-  if(value>max) { col1=col2; }
-  drawGauge(x+50,y+10,10,1,value,max,_color,col1);
-}
-
 //-------------------------------------------------------------------
 
 /* draw net-time at x,y with color */
 //TODO do not work
-void drawTime(int x,int y,int size,int color) {  
-  drawText(x,y,size,getTime(),color);
+void drawTime(int x,int y,int size,int color,int align) {  
+  drawText(x,y,size,getTime(),color,align);
 }
 
 /* draw net-date at x,y with color */
 //TODO do not work
-void drawDate(int x,int y,int size,int color) {  
-  drawText(x,y,size,getDate(),color);
+void drawDate(int x,int y,int size,int color,int align) {  
+  drawText(x,y,size,getDate(),color,align);
 }
 
 

@@ -32,6 +32,10 @@ int col_blue;
 int pixelX=240;
 int pixelY=240;
 
+//String uploadFile=String("upload");
+char* uploadFile="/upload_file";
+String URL_FILE="/upload_url";
+
 //---------------------------------------------------------------------------
 
 // display store structur
