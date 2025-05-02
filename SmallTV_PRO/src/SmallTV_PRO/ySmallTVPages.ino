@@ -138,20 +138,19 @@ class DisValue {
     char *valRemote; //="homeassistant2/switch/tasmota/state";
     int valType=0;
 
+    double valF=-1;
     double minF=999999;
     double maxF=0;
-
-    char *min="0";
-    char *med="75";
-    char *max="100";  
+    double medF=-1;
 
     int col1=-1,col2=-1,col3=-1;
     int x=-1,y=-1,w=-1;
 
     void setVal(char *val) {
-      double valF=toDouble(val);
+      valF=toDouble(val);
       if(valF<minF) { minF=valF; }
       if(valF>maxF) { maxF=valF; }
+sprintf(buffer,"DisValue val:%s valF:%0.2f minF:%0.2f maxF:%0.2f",val,valF,minF,maxF);  logPrintln(LOG_DEBUG,buffer);        
     }
     void set(byte type,char *config) {
       _type=type;
@@ -170,7 +169,7 @@ sprintf(buffer,"DisValue type:%d key:%s haType:%s haName:%s valRemote:%s",type,v
       if(w<0) { w=pixelX-x*2; if(pixelY<pixelX) { w=pixelY-y*2; } }
       if(!is(val)) { drawUnkown(); return ; } // draw unkown
       setVal(val);
-      drawValue(valType,x,y,w,valKey,val,min,med,max,col1,col2,col3);
+      drawValue(valType,x,y,w,valKey,val,minF,medF,maxF,col1,col2,col3);
     }  
     DisValue(byte type,char *config) { set(type,config); }
 };

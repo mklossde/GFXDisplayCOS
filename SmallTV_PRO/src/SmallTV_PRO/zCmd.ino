@@ -85,16 +85,17 @@ char* matrixCmd(char *cmd, char **param) {
     // drawFull x y w h p value max, c1,c2 - draw a full-element at x,y with w,h. full=100/max*value will be in color c2 and offset p
     else if(equals(cmd, "drawFull")) { drawFull(toInt(cmdParam(param)),toInt(cmdParam(param)),toInt(cmdParam(param)),toInt(cmdParam(param)),toInt(cmdParam(param)),toInt(cmdParam(param)),toInt(cmdParam(param)),toInt(cmdParam(param)),toInt(cmdParam(param))); return EMPTY; }
     // int x,int y,int w,int p,char *value,char *min,char *med,char *max,int col1,int col2,int col3
+   
     else if(equals(cmd, "drawOn")) { drawOn(toInt(cmdParam(param)),toInt(cmdParam(param)),toInt(cmdParam(param)),toInt(cmdParam(param)),
-      cmdParam(param),cmdParam(param),cmdParam(param),cmdParam(param),
+      cmdParam(param),toDouble(cmdParam(param)),toDouble(cmdParam(param)),toDouble(cmdParam(param)),
       toInt(cmdParam(param)),toInt(cmdParam(param)),toInt(cmdParam(param))); return EMPTY; }
-    else if(equals(cmd, "drawGauge")) { drawGauge(toInt(cmdParam(param)),toInt(cmdParam(param)),toInt(cmdParam(param)),toInt(cmdParam(param)),toInt(cmdParam(param))
-      ,cmdParam(param),cmdParam(param),cmdParam(param),cmdParam(param)
-      ,toInt(cmdParam(param)),toInt(cmdParam(param)),toInt(cmdParam(param))); return EMPTY; }
+    else if(equals(cmd, "drawGauge")) { drawGauge(toInt(cmdParam(param)),toInt(cmdParam(param)),toInt(cmdParam(param)),toInt(cmdParam(param)),toInt(cmdParam(param)),
+      cmdParam(param),toDouble(cmdParam(param)),toDouble(cmdParam(param)),toDouble(cmdParam(param)),
+      toInt(cmdParam(param)),toInt(cmdParam(param)),toInt(cmdParam(param))); return EMPTY; }
 
     // drawValue type x y value min max c1 c2 - show value with name at full
     else if(equals(cmd, "drawValue")) { drawValue(toInt(cmdParam(param)),toInt(cmdParam(param)),toInt(cmdParam(param)),toInt(cmdParam(param)),
-        cmdParam(param),cmdParam(param),cmdParam(param),cmdParam(param),cmdParam(param),
+        cmdParam(param),cmdParam(param),toDouble(cmdParam(param)),toDouble(cmdParam(param)),toDouble(cmdParam(param)),
         toInt(cmdParam(param)),toInt(cmdParam(param)),toInt(cmdParam(param))); return EMPTY; }
 
     // drawText x y c size text - draw text at x y with size  align
@@ -140,6 +141,8 @@ char* matrixCmd(char *cmd, char **param) {
     else if(equals(cmd, "matrix")) { return cmdSetMatrix(cmdParam(param),cmdParam(param),cmdParam(param),cmdParam(param),cmdParam(param),cmdParam(param));  }
     // buffer dmaBuffer displayBuffer - (0=off/1=on) enable dmsBuffer or displayBuffer 
     else if(equals(cmd, "matrix2")) { return cmdSetMatrix2(toBoolean(cmdParam(param)),toBoolean(cmdParam(param)),toInt(cmdParam(param)),toBoolean(cmdParam(param)),cmdParam(param));  }
+
+else if(equals(cmd, "toDouble")) { double d=toDouble(cmdParam(param)); sprintf(buffer,"%9.2f x:%0.2f y:%.2f",d,d,d); return buffer; } 
 
     else { return cmd; }
 }

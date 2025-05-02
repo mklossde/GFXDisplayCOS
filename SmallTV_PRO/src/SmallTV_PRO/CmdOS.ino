@@ -395,6 +395,7 @@ char* to(byte d) { sprintf(buffer,"%d",d); return buffer; }
 char* to(int d) { sprintf(buffer,"%d",d); return buffer; }
 char* to(long d) { sprintf(buffer,"%d",d); return buffer; }
 char* to(boolean d) { sprintf(buffer,"%d",d); return buffer; }
+char* to(double d) { sprintf(buffer,"%.2f",d); return buffer; }
 char* to(char *p) {if(p!=NULL && strlen(p)>0 && strlen(p)<bufferMax) { return p; } else { return EMPTY; } }
 const char* to(const char *p) {if(p!=NULL && strlen(p)>0 && strlen(p)<bufferMax) { return p; } else { return EMPTY; } }
 
@@ -411,13 +412,37 @@ boolean toBoolean(int i) { return i>0; }
 /* convert char* to boolean */
 boolean toBoolean(char *p) { return p!=NULL && strlen(p)>0 && (strcmp(p, "on")==0 || strcmp(p, "true")==0 || atoi(p)>0); }
 /* convert char* to int */
-int toInt(char *p) { if(p!=NULL && strlen(p)>0) { return atoi(p); } else { return -1; } }
+int toInt(char *p) { 
+  if(!is(p)) { return -1; }
+  else if(isInt(p)) { return atoi(p); } 
+  if(toBoolean(p)) { return 1; }else { return 0; } 
+} 
 /* convert char* to double */
-double toDouble(char *p) { if(p!=NULL && strlen(p)>0) { return atof(p); } else { return -1; } }
+double toDouble(char *p) { 
+  if(!is(p)) { return -1; }
+  else if(isDouble(p)) { return atof(p); }
+  if(toBoolean(p)) { return 1; } else { return 0; } 
+}
 /* convert char* to long */
-long int toLong(char *p) { if(p!=NULL && strlen(p)>0) { return atol(p); } else { return -1; } }
+long int toLong(char *p) { 
+  if(!is(p)) { return -1; }
+  else if(isInt(p)) { return atol(p); } 
+  if(toBoolean(p)) { return 1; }else { return 0; } 
+}
 /* convert char* to unsigned long */
-unsigned long toULong(char *p) { if(p!=NULL && strlen(p)>0) { return strtoul(p, NULL, 0); } else { return -1; } }
+unsigned long toULong(char *p) { 
+  if(!is(p)) { return -1; }
+  else if(isBoolean(p)) {  if(toBoolean(p)) { return 1; }else { return 0; } }
+  else { return strtoul(p, NULL, 0); } 
+}
+
+boolean isDouble(char *p) {
+  char *x=p;
+  if (x==NULL || x==EMPTY || *x == '\0') { return false; } // Empty string is not a number
+  else if (*x == '+' || *x == '-')  { x++; } // Handle optional sign
+  while (*x) { if (!isdigit(*x) && *x!='.') { return false; } else { x++;} }// Non-digit character found
+  return true;  // All characters are digits
+}
 
 boolean isInt(char *p) {
   char *x=p;
