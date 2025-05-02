@@ -84,7 +84,10 @@ char* matrixCmd(char *cmd, char **param) {
     
     // drawFull x y w h p value max, c1,c2 - draw a full-element at x,y with w,h. full=100/max*value will be in color c2 and offset p
     else if(equals(cmd, "drawFull")) { drawFull(toInt(cmdParam(param)),toInt(cmdParam(param)),toInt(cmdParam(param)),toInt(cmdParam(param)),toInt(cmdParam(param)),toInt(cmdParam(param)),toInt(cmdParam(param)),toInt(cmdParam(param)),toInt(cmdParam(param))); return EMPTY; }
-    else if(equals(cmd, "drawOn")) { drawOn(toInt(cmdParam(param)),toInt(cmdParam(param)),toInt(cmdParam(param)),toInt(cmdParam(param)),cmdParam(param),toInt(cmdParam(param)),toInt(cmdParam(param))); return EMPTY; }
+    // int x,int y,int w,int p,char *value,char *min,char *med,char *max,int col1,int col2,int col3
+    else if(equals(cmd, "drawOn")) { drawOn(toInt(cmdParam(param)),toInt(cmdParam(param)),toInt(cmdParam(param)),toInt(cmdParam(param)),
+      cmdParam(param),cmdParam(param),cmdParam(param),cmdParam(param),
+      toInt(cmdParam(param)),toInt(cmdParam(param)),toInt(cmdParam(param))); return EMPTY; }
     else if(equals(cmd, "drawGauge")) { drawGauge(toInt(cmdParam(param)),toInt(cmdParam(param)),toInt(cmdParam(param)),toInt(cmdParam(param)),toInt(cmdParam(param))
       ,cmdParam(param),cmdParam(param),cmdParam(param),cmdParam(param)
       ,toInt(cmdParam(param)),toInt(cmdParam(param)),toInt(cmdParam(param))); return EMPTY; }

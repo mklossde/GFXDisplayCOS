@@ -234,7 +234,7 @@ char* concat(char* first, ...) {
     va_list args;
     va_start(args, first);
     size_t l=0;
-    for (char* s = first; s != NULL && (l=strlen(s))>0; s = va_arg(args, char*)) {  total_len += l;  }
+    for (char* s = first; is(s) && (l=strlen(s))>0; s = va_arg(args, char*)) {  total_len += l;  }
     va_end(args);
 
     char *result = (char*)malloc(sizeof(char) *(total_len + 1)); // +1 for null terminator
@@ -242,7 +242,7 @@ char* concat(char* first, ...) {
     result[0] = '\0'; // initialize empty string
 
     va_start(args, first);
-    for (char* s = first; s != NULL; s = va_arg(args, char*)) { strcat(result, s); }
+    for (char* s = first; is(s); s = va_arg(args, char*)) { strcat(result, s); }
     va_end(args);
     return result;
 }
@@ -328,12 +328,21 @@ boolean startWith(char *str,char *find) {
   return true;
 }
 
-/* extract from src (NEW char[]) */
+/* extract from src (NEW char[]) (e.g. is=extract(".",":","This.is:new") )*/
 char* extract(char *start, char *end, char *src) {
-    const char *start_ptr = strstr(src, start); if (!start_ptr) { return NULL; }
-    start_ptr += strlen(start);  // Move past 'start'
-    const char *end_ptr = strstr(start_ptr, end); if (!end_ptr) { return NULL; }
-    size_t len = end_ptr - start_ptr; 
+    const char *start_ptr=src;
+    if(is(start)) {  // find start if given
+      start_ptr = strstr(src, start); 
+      if (!start_ptr) { return NULL; } 
+      else { start_ptr += strlen(start); }  // Move past 'start'
+    }      
+    size_t len = 0;
+    if(is(end)) { 
+      const char *end_ptr = strstr(start_ptr, end); if (!end_ptr) { return NULL; }
+      len = end_ptr - start_ptr; 
+    }else  {
+      len=strlen(start_ptr);
+    }
     char *result=new char(len+1);
     strncpy(result, start_ptr, len);  result[len] = '\0';  
     return result;
@@ -462,8 +471,8 @@ uint32_t espChipId() {
 
 /* esp info */
 char* espInfo() {
-    sprintf(buffer,"ESP chip:%d free:%d core:%s freq:%d flashChipId:%d flashSize:%d flashSpeed:%d SketchSize:%d FreeSketchSpace:%d",    
-      espChipId(),ESP.getFreeHeap(), ESP.getSdkVersion(),ESP.getCpuFreqMHz()
+    sprintf(buffer,"ESP chip:%d free:%d/%d core:%s freq:%d flashChipId:%d flashSize:%d flashSpeed:%d SketchSize:%d FreeSketchSpace:%d",    
+      espChipId(),ESP.getFreeHeap(),freeHeapMax, ESP.getSdkVersion(),ESP.getCpuFreqMHz()
       ,ESP.getFlashChipMode(),ESP.getFlashChipSize(),ESP.getFlashChipSpeed(),ESP.getSketchSize(),ESP.getFreeSketchSpace());           
     return buffer;
 }
@@ -1036,6 +1045,7 @@ char* sysAttr(char *name) {
   else if(equals(name,"date")) { s=getDate(); }
   else if(equals(name,"ip")) { s=(char*)appIP.c_str(); }
   else if(equals(name, "freeHeap")) { d=ESP.getFreeHeap(); }// show free heap
+  else if(equals(name, "freeHeapMax")) { d=freeHeapMax; }// show free heap  
   else { return EMPTY; }
 
   if(is(s)) { sprintf(paramBuffer,"%s",s); } else { sprintf(paramBuffer,"%d",d); }
@@ -1132,6 +1142,7 @@ boolean paramsAdd(AppParam *p) {
   return true;
 }
 */
+
 
 //-------------------------------------------------------------------------------------------------------------------
 // LED
@@ -1516,9 +1527,9 @@ char* swInit(int pin, boolean on, byte mode, int timeBase, byte tickShort, byte 
 
 #endif
 
-/*
- * Wifi
- */
+
+//--------------------------------------------------------------------------------------
+//  Wifi
  
 //#include <WiFi.h>
 #include <DNSServer.h>
@@ -1530,8 +1541,6 @@ char* swInit(int pin, boolean on, byte mode, int timeBase, byte tickShort, byte 
 #endif
 
 #include <time.h>     // time
-
-
 
 // Bootloader version
 char bootType[5] = "Os01"; // max 10 chars
@@ -2352,9 +2361,11 @@ void otaLoop() {
 #endif
 
 
+//--------------------------------------------------------------------
+// MQTT
+
 #if mqttEnable
 
-// MQTT
 #include <PubSubClient.h>
 
 unsigned long *mqttTime = new unsigned long(0); // mqtt timer
@@ -2528,19 +2539,24 @@ void mqttPublishState(char *name,char *message) {
 
 void mqttReceive(char* topic, byte* payload, unsigned int length) {  
 
-  if (mqttCmdEnable && strcmp(topic,mqttTopicCmd) == 0) {    
-    char *msg=copy(NULL,(char*)payload,length);
+  char *msg=copy(NULL,(char*)payload,length);
+
+  if (mqttCmdEnable && strcmp(topic,mqttTopicCmd) == 0) {   // call cmd     
     sprintf(buffer,"MQTT cmd '%s' %s %d", topic, msg,length); logPrintln(LOG_DEBUG,buffer);
     char *result=cmdLine(msg); 
     free(msg);
     mqttPublishState("cmd",result);
 
-/*
-  } else if(attrMap.find(topic)!=-1) { 
+  }else if(mqttOnMsg(topic,msg)) {
+     free(msg);
+     return ;
+     
+  } else if(attrMap.find(topic)!=-1) {  // set topic as attribute 
     attrMap.replace(topic,(char*)payload,length);
     sprintf(buffer,"MQTT attrSet '%s'", topic); logPrintln(LOG_DEBUG,buffer);
-*/
+    free(msg);
 
+/*
   #if mqttDiscovery  
   } else if (strcmp(topic,mqttTopicReceive) == 0) { 
       char *msg=copy(NULL,(char*)payload,length);
@@ -2550,10 +2566,10 @@ void mqttReceive(char* topic, byte* payload, unsigned int length) {
       //if(result!=NULL) { mqttPublish(mqttTopicStat,result); }
       free(msg);
   #endif
+*/
 
   } else { 
-    char *msg=copy(NULL,(char*)payload,length);
-    boolean ok=paramSet(topic,msg);
+    boolean ok=paramSet(topic,msg); // set as param
     if(!ok) { sprintf(buffer,"MQTT unkown topic '%s'", topic); logPrintln(LOG_DEBUG,buffer); }    
     free(msg);
   }
@@ -2649,6 +2665,7 @@ void mqttConnect() {
         mqttPublishState("state", "on");                   // discovery state
       #endif
 
+      mqttOnConnect(); // app spezific mqtt-commands after mqtt connect
       mqttClient->publish(mqttTopicOnline, "online");    // availability  online/offline
       mqttConFail=0;   // connected => reset fail
 
@@ -2707,13 +2724,14 @@ void mqttLoop() {
   boolean mqttDel(char*name) {}
 
   int paramsClear(byte type) { return 0; }
-  
+
 #endif
 
 
+//-----------------------------------------------------------------------------------
+// web
+
 #if webEnable
-
-
 
 #include <Arduino.h>
 #ifdef ESP32
@@ -2724,14 +2742,10 @@ void mqttLoop() {
   #include <ESP8266mDNS.h>
 #endif
 
-
-
 AsyncAuthenticationMiddleware basicAuth;
 
 boolean _webInit = false;
 
-//-----------------------------------------------------------------------------
-// web
 String webParam(AsyncWebServerRequest *request,String key) { 
   if (request->hasParam(key)) { return request->getParam(key)->value(); }
   else { return EMPTYSTRING; }
@@ -3249,6 +3263,8 @@ void webLoop() {
 #endif
 
 
+//--------------------------------------------------------------------------------
+// telnet
 
 #if telnetEnable
 
@@ -3367,6 +3383,7 @@ Serial.println("REQUEST END");
 #endif
 
 
+//--------------------------------------------------------------------------------------
 // Serial Command Line
 
 unsigned long *cmdTime = new unsigned long(0);
@@ -3887,7 +3904,8 @@ void cmdLoop() {
 }
 
 
-
+//--------------------------------------------------------------------------------------
+// Setup/Loop
 
 void cmdOSSetup() {
   if(serialEnable) { 
@@ -3895,6 +3913,7 @@ void cmdOSSetup() {
     delay(1); Serial.println("----------------------------------------------------------------------------------------------------------------------");
   }
   freeHeapMax=ESP.getFreeHeap(); // remeber max freeHeap
+  logPrintln(LOG_INFO,espInfo()); // ESP infos
   eeSetup();
   ledSetup();  
   swSetup(); 
@@ -3935,11 +3954,4 @@ void cmdOSLoop() {
   }
   delay(0);
 }
-
-
-
-
-
-
-
 

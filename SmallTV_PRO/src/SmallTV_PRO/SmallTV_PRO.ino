@@ -80,6 +80,10 @@ char* appCmd(char *cmd, char **param) {
     return matrixCmd(cmd,param); 
 }
 
+/** call on mqtt startup */
+void mqttOnConnect() {}
+boolean mqttOnMsg(char *topic,char *msg) { return false; }
+
 //--------------------------------------------------------------
 
 

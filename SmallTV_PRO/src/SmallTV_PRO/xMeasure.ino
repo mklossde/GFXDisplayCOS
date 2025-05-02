@@ -71,11 +71,14 @@ void drawGauge(int x,int y,int w,int d1,int p,char *value,char *min,char *med,ch
 }
 
 /* draw on button e.g. drawOn 10 10 5 2 1 -1 2016 */
-void drawOn(int x,int y,int w,int p,char *value,int col1,int col2) {
-  drawCircle(x,y,w,col1);
+void drawOn(int x,int y,int w,int p,char *value,char *min,char *med,char *max,int col1,int col2,int col3) {
+  fillCircle(x,y,w,col1);  
   boolean on=toBoolean(value);
+  int minInt=toInt(min),valueInt=toInt(value),maxInt=toInt(max)-minInt;
+  int medInt=toInt(med);
+  if(medInt>0 && valueInt>medInt) { col2=col3; }
   if(on) { fillCircle(x,y,w-p,col2); }
-  drawText(x,y+5,fontSize,value,col1,0);
+  drawText(x,y-fontSize*4,fontSize,value,col1,0);
 }
 
 //-------------------------------------------
@@ -121,7 +124,7 @@ void drawValue(int type,int x,int y,int w,char *text,char *value,char *min,char 
     drawBar(x,y+fontSize*8+5,w,w/4,2,value,min,med,max,col1,col2,col3);
   }else {
 
-    drawOn(x+w2,y+w2,w2,2,value,_color,col1);
+    drawOn(x+w2,y+w2,w2,4,value,min,med,max,col1,col2,col3);
   }
 }
 

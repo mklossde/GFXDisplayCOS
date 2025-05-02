@@ -126,25 +126,74 @@ void pageEsp() {
 //-------------------------------------------------------------------------
 // PAGE state
 
-char *stateAttr="homeassistant2/switch/tasmota/state";
+char *haStatePrefix="homeassistant2/";
+
+class DisValue {
+  private:
+    byte _type;
+  public:
+
+  //  char *valName="val";
+    char *valKey; //="value";
+    char *valRemote; //="homeassistant2/switch/tasmota/state";
+    int valType=0;
+
+    double minF=999999;
+    double maxF=0;
+
+    char *min="0";
+    char *med="75";
+    char *max="100";  
+
+    int col1=-1,col2=-1,col3=-1;
+    int x=-1,y=-1,w=-1;
+
+    void setVal(char *val) {
+      double valF=toDouble(val);
+      if(valF<minF) { minF=valF; }
+      if(valF>maxF) { maxF=valF; }
+    }
+    void set(byte type,char *config) {
+      _type=type;
+      valKey=copy(config); // e.g switch.tasmota
+      char *haType=extract(NULL,".",valKey);
+      char *haName=extract(".",NULL,valKey);            
+      valRemote=concat(haStatePrefix,haType,"/",haName,"/state",NULL); // e.g. "homeassistant2/switch/tasmota/state";
+sprintf(buffer,"DisValue type:%d key:%s haType:%s haName:%s valRemote:%s",type,valKey,haType,haName,valRemote); logPrintln(LOG_INFO,buffer);      
+    }
+    void drawUnkown() {
+      if(is(valKey)) { drawText(x+w/2,y+w/2,fontSize,valKey,col_red,0); }
+      drawRect(x,y,w,w,col_red); drawLine(x,y,x+w,y+w,col_red);drawLine(x,y+w,x+w,y,col_red); 
+    }
+    void draw(char *val) {
+      if(x<0) { x=10; y=10; }
+      if(w<0) { w=pixelX-x*2; if(pixelY<pixelX) { w=pixelY-y*2; } }
+      if(!is(val)) { drawUnkown(); return ; } // draw unkown
+      setVal(val);
+      drawValue(valType,x,y,w,valKey,val,min,med,max,col1,col2,col3);
+    }  
+    DisValue(byte type,char *config) { set(type,config); }
+};
+
+DisValue *stateValue=NULL;
 
 /* show page state */
 void pageState() {  
-  mqttAttr("value",stateAttr);
+  if(stateValue==NULL) { stateValue=new DisValue(0,"switch.tasmota"); }
+//  mqttAttr("value",stateAttr);
+  mqttAttr(stateValue->valKey,stateValue->valRemote);
   pageStateLoop();
+}
+
+void pageStateValue() {
+//TODO get via pram ?  
+  char *val=attrGet(stateValue->valKey); 
+  stateValue->draw(val);
 }
 
 void pageStateLoop() {
   pageClear();
-  drawText(10,10,fontSize,"state",col_red,-1);
-
-  if(is(stateAttr)) {     
-    drawText(10,30,fontSize,stateAttr,col_red,-1);
-    char *val=attrGet("value");
-sprintf(buffer,"val:%s",to(val)); logPrintln(LOG_DEBUG,buffer);    
-    drawText(10,100,fontSize,val,col_green,-1);
-  }
-
+  pageStateValue();
   draw();  
 }
 
@@ -213,6 +262,9 @@ void displayPageSetup() {
 
   pageStart();  
   pageSet(0); 
+
+//  mqttDiscoverAdd("page",page(),"page $msg"); // pages()
+//  mqttDiscoverAdd("off",page(),"page $msg"); // pages()
 }
 
 void displayPageLoop() {
