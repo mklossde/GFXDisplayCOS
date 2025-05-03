@@ -142,7 +142,8 @@ char* matrixCmd(char *cmd, char **param) {
     // buffer dmaBuffer displayBuffer - (0=off/1=on) enable dmsBuffer or displayBuffer 
     else if(equals(cmd, "matrix2")) { return cmdSetMatrix2(toBoolean(cmdParam(param)),toBoolean(cmdParam(param)),toInt(cmdParam(param)),toBoolean(cmdParam(param)),cmdParam(param));  }
 
-else if(equals(cmd, "toDouble")) { double d=toDouble(cmdParam(param)); sprintf(buffer,"%9.2f x:%0.2f y:%.2f",d,d,d); return buffer; } 
+//else if(equals(cmd, "toDouble")) { double d=toDouble(cmdParam(param)); sprintf(buffer,"%9.2f x:%0.2f y:%.2f",d,d,d); return buffer; } 
+    else if(equals(cmd, "disValue")) { return pageStateSet(cmdParam(param)); }
 
     else { return cmd; }
 }

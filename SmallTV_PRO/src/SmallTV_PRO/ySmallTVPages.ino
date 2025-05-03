@@ -131,6 +131,15 @@ char *haStatePrefix="homeassistant2/";
 class DisValue {
   private:
     byte _type;
+
+    void init(char *config) {
+      valKey=copy(config); // e.g switch.tasmota
+      char *haType=extract(NULL,".",valKey);
+      char *haName=extract(".",NULL,valKey);            
+      valRemote=concat(haStatePrefix,haType,"/",haName,"/state",NULL); // e.g. "homeassistant2/switch/tasmota/state";
+      sprintf(buffer,"DisValue type:%d key:%s haType:%s haName:%s valRemote:%s",_type,valKey,haType,haName,valRemote); logPrintln(LOG_DEBUG,buffer);      
+    }
+
   public:
 
   //  char *valName="val";
@@ -150,16 +159,15 @@ class DisValue {
       valF=toDouble(val);
       if(valF<minF) { minF=valF; }
       if(valF>maxF) { maxF=valF; }
-sprintf(buffer,"DisValue val:%s valF:%0.2f minF:%0.2f maxF:%0.2f",val,valF,minF,maxF);  logPrintln(LOG_DEBUG,buffer);        
+      sprintf(buffer,"DisValue val:%s valF:%0.2f minF:%0.2f maxF:%0.2f",val,valF,minF,maxF);  logPrintln(LOG_DEBUG,buffer);        
     }
-    void set(byte type,char *config) {
-      _type=type;
-      valKey=copy(config); // e.g switch.tasmota
-      char *haType=extract(NULL,".",valKey);
-      char *haName=extract(".",NULL,valKey);            
-      valRemote=concat(haStatePrefix,haType,"/",haName,"/state",NULL); // e.g. "homeassistant2/switch/tasmota/state";
-sprintf(buffer,"DisValue type:%d key:%s haType:%s haName:%s valRemote:%s",type,valKey,haType,haName,valRemote); logPrintln(LOG_INFO,buffer);      
-    }
+
+    void reinit(char *config) {
+      if(valKey) { free(valKey); }
+      if(valRemote) { free(valRemote); }
+      valF=-1,minF=999999,maxF=0,medF=-1;
+      init(config);
+    } 
     void drawUnkown() {
       if(is(valKey)) { drawText(x+w/2,y+w/2,fontSize,valKey,col_red,0); }
       drawRect(x,y,w,w,col_red); drawLine(x,y,x+w,y+w,col_red);drawLine(x,y+w,x+w,y,col_red); 
@@ -171,29 +179,40 @@ sprintf(buffer,"DisValue type:%d key:%s haType:%s haName:%s valRemote:%s",type,v
       setVal(val);
       drawValue(valType,x,y,w,valKey,val,minF,medF,maxF,col1,col2,col3);
     }  
-    DisValue(byte type,char *config) { set(type,config); }
+    char* toString() {
+      sprintf(buffer,"DisValue type:%d key:%s valRemote:%s valType:%d",_type,valKey,valRemote,valType); return buffer;
+    }
+    DisValue(char *config) { init(config); }
 };
 
 DisValue *stateValue=NULL;
 
 /* show page state */
 void pageState() {  
-  if(stateValue==NULL) { stateValue=new DisValue(0,"switch.tasmota"); }
+//  if(!stateValue) { stateValue=new DisValue("switch.tasmota"); }
 //  mqttAttr("value",stateAttr);
-  mqttAttr(stateValue->valKey,stateValue->valRemote);
+  if(stateValue) { mqttAttr(stateValue->valKey,stateValue->valRemote); }
   pageStateLoop();
 }
 
 void pageStateValue() {
 //TODO get via pram ?  
   char *val=attrGet(stateValue->valKey); 
-  stateValue->draw(val);
+  stateValue->draw(val); 
 }
 
 void pageStateLoop() {
   pageClear();
-  pageStateValue();
+  if(stateValue) {  pageStateValue();}
   draw();  
+}
+
+char* pageStateSet(char *config) {
+  if(is(config)) { 
+    if(!stateValue) { stateValue=new DisValue(config);  }
+    else { stateValue->reinit(config); }
+  }
+  return stateValue->toString();
 }
 
 //-------------------------------------------------------------------------

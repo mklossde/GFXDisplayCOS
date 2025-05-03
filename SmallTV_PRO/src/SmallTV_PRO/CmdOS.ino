@@ -16,11 +16,10 @@
 #include <sys/time.h>     // time
 
 /* cmdOS by michael@OpenON.org */
-const char *cmdOS="V.0.3.0";
+const char *cmdOS="V.0.4.0";
 char *APP_NAME_PREFIX="CmdOs";
  
 String appIP="";
-#define MAX_DONWLOAD_SIZE 10000
 
 /* on init auto find wifi set_up (password set_up) and connect */
 #define wifi_setup "set_up"
@@ -28,9 +27,7 @@ String appIP="";
 long freeHeapMax;
 
 //-----------------------------------------------------------------------------
-// new [] => delete[]
-// NEW => delete
-// malloc() or calloc() => free
+
 
 #define EE_MODE_FIRST 0 // First init => EEPROM Wrong
 #define EE_MODE_SETUP 1 // EEInit / wifi Setup mode
@@ -88,25 +85,266 @@ char* cmdFile(char* p0); // execute a cmd-file
 //-----------------------------------------------------------------------------
 // char utils
 
-#define valueMax 32
-#define bufferMax 500
-static char* buffer=new char[bufferMax]; // buffer for char/logging
-static char* EMPTY="";
+#define MAX_DONWLOAD_SIZE 50000
+
+#define bufferMax 256
 #define paramBufferMax 128
+#define maxInData 128 // max line length
+
+#define minValueLen 8
+
+static char* buffer=new char[bufferMax]; // buffer for char/logging
 static char* paramBuffer=new char[paramBufferMax]; // buffer for params
+static char inData [maxInData]; // read buffer
+static char inIndex = 0; // read index
 
+static char* EMPTY="";
 static String EMPTYSTRING="";
-//static String NOT_IMPLEMENTED="NOT IMPLEMENTED";
+
+
+//------------------------------------
+
+
+/* replace all old_car with new_cahr in str 
+    e.g. replace(str,' ','+');
+*/
+void replace(char *str, char old_char, char new_char) {
+    if (str == NULL) { return; }
+    while (*str != '\0') { // Iterate through the string until the null terminator
+        if (*str == old_char) { *str = new_char; } // Replace the character
+        str++; // Move to the next character
+    }
+}
+
+/* return if str ends with find 
+    e.g. if(endsWith(str,".gif"))
+*/
+boolean endsWith(char *str,char *find) {
+  if(str==NULL || find==NULL) { return false; }
+  int len=strlen(str);
+  int findLend=strlen(find);
+ return len >= findLend && strcmp(str + len - findLend, find) == 0;
+}
+
+/* return if str start with find 
+    e.g. if(startWith(str,"/"))
+*/
+boolean startWith(char *str,char *find) {
+  if(!is(str) || !is(find)) { return false; }
+  //return strcmp(str, find) == 0;
+  int l1=strlen(str); int l2=strlen(find);
+  if(l1<l2) { return false; }
+  for(int i=0;i<l2;i++) {  if(*str++!=*find++) { return false; } }
+  return true;
+}
+
+
+
+/* validate is cstr equals to find  
+    e.g. if(equals(cmd,"stat")) */
+boolean equals(char *str,char *find) {
+  if(!is(str) || !is(find)) { return false; }
+  int l1=strlen(str); int l2=strlen(find); 
+  if(l1!=l2) { return false; }
+  for(int i=0;i<l2;i++) {        
+    if(*str!=*find) { return false; } 
+    str++; find++;
+  }  
+  return true;
+}
+
+/* size/len of text  
+    int len=size(text);
+*/
+int size(char *text) { if(text==NULL) { return -1; } else { return strlen(text); }}
+
+/* insert at pos into buffer */
+void insert(char* buffer,int pos,char* insertText) {
+    size_t insertLen = strlen(insertText);
+    size_t len = strlen(buffer);
+    size_t newLen = insertLen + len;      
+    // Shift existing text to the right
+    memmove(buffer + pos + insertLen, buffer + pos , len - pos + 1);  // +1 for null terminator
+    // Copy the prefix at the beginning
+    memcpy(buffer+pos, insertText, insertLen);
+} 
+
+ 
+/*  validate if chars not NULL  
+    e.g. if(is(text))
+*/
+boolean is(char *p) { return p!=NULL && p!=EMPTY; }
+/*  validate if chars have size betwee >=min <max
+    e.g. if(is(text,1,32))
+*/
+boolean is(char *p,int min,int max) { return p!=NULL && strlen(p)>=min && strlen(p)<max; }
+
+boolean is(String str) { return (str!=NULL || str!=EMPTYSTRING); }
+boolean is(String str,int min,int max) { if(str==NULL || str==EMPTYSTRING ) { return false; } int len=str.length(); return len>=min && len<max; }
+
+/* convert to correct char */
+char* to(byte d) { sprintf(buffer,"%d",d); return buffer; }
+char* to(int d) { sprintf(buffer,"%d",d); return buffer; }
+char* to(long d) { sprintf(buffer,"%d",d); return buffer; }
+char* to(boolean d) { sprintf(buffer,"%d",d); return buffer; }
+char* to(double d) { sprintf(buffer,"%.2f",d); return buffer; }
+char* to(char *p) {if(p!=NULL && strlen(p)>0 && strlen(p)<bufferMax) { return p; } else { return EMPTY; } }
+const char* to(const char *p) {if(p!=NULL && strlen(p)>0 && strlen(p)<bufferMax) { return p; } else { return EMPTY; } }
+
+char* to(char *a,char *b) { sprintf(buffer,"%s%s",to(a),to(b)); return buffer; }
+char* to(const char *a, const char *b,const char *c) {  sprintf(buffer,"%s%s%s",to(a),to(b),to(c)); return buffer; }
+char* to(const char *a, const char *b,const char *c,const char *d) {  sprintf(buffer,"%s%s%s%s",to(a),to(b),to(c),to(d)); return buffer; }
+char* to(const char *a, const char *b,const char *c,const char *d,const char *e) {  sprintf(buffer,"%s%s%s%s%s",to(a),to(b),to(c),to(d),to(e)); return buffer; }
+
+void *toLower(char* str) {
+    if(str==NULL) { return NULL; }
+    int i=0;
+    while(str[i]!='\0') { str[i] = (char)tolower((unsigned char)str[i]); }
+}
+
+/* convert cahr* to string */
+String toString(const char *text) {  if(!is(text)) { return EMPTYSTRING; } return String(text); }
+String toString(char *text) {  if(!is(text)) { return EMPTYSTRING; } return String(text); }
+
+boolean toBoolean(int i) { return i>0; }
+/* convert char* to boolean */
+boolean toBoolean(char *p) { return p!=NULL && strlen(p)>0 && (strcmp(p, "on")==0 || strcmp(p, "true")==0 || atoi(p)>0); }
+/* convert char* to int */
+int toInt(char *p) { 
+  if(!is(p)) { return -1; }
+  else if(isInt(p)) { return atoi(p); } 
+  if(toBoolean(p)) { return 1; }else { return 0; } 
+} 
+/* convert char* to double */
+double toDouble(char *p) { 
+  if(!is(p)) { return -1; }
+  else if(isDouble(p)) { return atof(p); }
+  if(toBoolean(p)) { return 1; } else { return 0; } 
+}
+/* convert char* to long */
+long int toLong(char *p) { 
+  if(!is(p)) { return -1; }
+  else if(isInt(p)) { return atol(p); } 
+  if(toBoolean(p)) { return 1; }else { return 0; } 
+}
+/* convert char* to unsigned long */
+unsigned long toULong(char *p) { 
+  if(!is(p)) { return -1; }
+  else if(isBoolean(p)) {  if(toBoolean(p)) { return 1; }else { return 0; } }
+  else { return strtoul(p, NULL, 0); } 
+}
+
+boolean isDouble(char *p) {
+  char *x=p;
+  if (x==NULL || x==EMPTY || *x == '\0') { return false; } // Empty string is not a number
+  else if (*x == '+' || *x == '-')  { x++; } // Handle optional sign
+  while (*x) { if (!isdigit(*x) && *x!='.') { return false; } else { x++;} }// Non-digit character found
+  return true;  // All characters are digits
+}
+
+boolean isInt(char *p) {
+  char *x=p;
+  if (x==NULL || x==EMPTY || *x == '\0') { return false; } // Empty string is not a number
+  else if (*x == '+' || *x == '-')  { x++; } // Handle optional sign
+  while (*x) { if (!isdigit(*x)) { return false; } else { x++;} }// Non-digit character found
+  return true;  // All characters are digits
+}
+
+boolean isBoolean(char *p) { 
+  char *x=p;
+  if (x==NULL || x==EMPTY || *x == '\0') { return false; } // Empty string is not a number
+  if(*x=='t' || *x=='T' || *x=='f' || *x=='F') { return true; }
+  return false;
+}
+
+//-----------------------------------------------------------------------------
+
+/* append text1 and text2 => text1text2 (by use paramBuffer) 
+    e.g. char* param=paramAppend("/",file)
+*/
+char* paramAppend(char *text1,char *text2) {  
+  if(size(text1)+size(text2) >= paramBufferMax) { return NULL; }
+  paramBuffer[0]= '\0';  
+  if(is(text1)) { strcpy(paramBuffer, text1);  }
+  if(is(text2)) { strcat(paramBuffer, text2); }
+  return paramBuffer;
+}
+
+//-----------------------------------------------------------------------------
+// ESP Tools
+
+/* reboot esp 
+    e.g. espRestart("restart after time")
+*/
+void espRestart(char* message) {  
+  if(serialEnable) { Serial.print("### Rebooting "); Serial.println(message); delay(1000); }
+  ESP.restart();
+}
+
+/* espChip ID */
+uint32_t espChipId() {
+  #ifdef ESP32
+    uint32_t chipId=0;
+    for (int i = 0; i < 17; i = i + 8) { chipId |= ((ESP.getEfuseMac() >> (40 - i)) & 0xff) << i;}
+    return chipId;
+  #elif defined(ESP8266)
+    return ESP.getChipId();
+  #endif
+}
+
+/* esp info */
+char* espInfo() {
+    sprintf(buffer,"ESP chip:%d free:%d/%d core:%s freq:%d flashChipId:%d flashSize:%d flashSpeed:%d SketchSize:%d FreeSketchSpace:%d",    
+      espChipId(),ESP.getFreeHeap(),freeHeapMax, ESP.getSdkVersion(),ESP.getCpuFreqMHz()
+      ,ESP.getFlashChipMode(),ESP.getFlashChipSize(),ESP.getFlashChipSpeed(),ESP.getSketchSize(),ESP.getFreeSketchSpace());           
+    return buffer;
+}
+
+//-----------------------------------------------------------------------------
+// Log
+
+void webLogLn(String msg); // define in web
+void mqttLog(char *message); // define in mqtt
+void telnetLog(char *message); // define in telnet
+
+/* log with level 
+    e.g. logPrintln(LOG_INFO,"info"); 
+        sprintf(buffer,"name:'%s'",name);logPrintln(LOG_INFO,buffer);  
+*/
+void logPrintln(int level,const char *text) { 
+  if(level>logLevel || !is(text)) { return ; }
+  if(serialEnable) { Serial.println(text); } 
+  if(telnetEnable) { telnetLog((char*)text); }
+  if(webSerialEnable) { webLogLn(toString(text)); }  
+  if(mqttLogEnable) { mqttLog((char*)text); }
+}
+
+/* log with lvel and string 
+    e.g. logPrintln(LOG_DEBUG,"info text");
+*/
+void logPrintln(int level,String text) {  
+  if(level>logLevel || !is(text)) { return ; } 
+  const char* log=text.c_str();
+  if(serialEnable) { Serial.println(log); } 
+  if(telnetEnable) { telnetLog((char*)log); }
+  if(webSerialEnable) { webLogLn(text); }
+  if(mqttLogEnable) { mqttLog((char*)log); }  
+}
+
+/* set actual logLevel - log this level and above
+    e.g. setLogLevel(LOG_DEBUG) 
+*/
+char* setLogLevel(int level) {
+  if(level>=0) { logLevel=level; }
+  sprintf(buffer,"%d",logLevel); return buffer;
+}
+
+
 
 //-------------------------------------------------------------------------------------------------------------------
-#define maxInData 150 // max line length
-char inData [maxInData]; // read buffer
-char inIndex = 0; // read index
+//  MapList
 
-//-------------------------------------------------------------------------------------------------------------------
-//  List
 
-int minValueLen=11;
 
 /* list of object and map of key=value */
 class MapList {
@@ -120,7 +358,8 @@ private:
   void grow(int grow) {
     _max+=grow; 
     if(_array==NULL) {          
-      _array = (void**) malloc(_max * sizeof(void*));
+//      _array = (void**) malloc(_max * sizeof(void*));
+      _array = (void**)malloc(_max * sizeof(void*));
       if(_isMap) { _key = (char**) malloc(_max * sizeof(char*)); }
       _vsize = (int*) malloc(_max * sizeof(int));
   }else {
@@ -226,6 +465,53 @@ public:
 
 
 //-----------------------------------------------------------------------------
+// Memory
+
+// new [] => delete[]
+// NEW => delete
+// malloc() or calloc() => free
+
+char* newChar(int len) {
+  return new char[len];
+}
+
+void* newMalloc(int size) {
+  return (void*)malloc(size);
+}
+
+/* buffered new char of len , by use oldchar (buffer first:\0 end of char, second:\0 end of buffer) */
+char* newChar(char *oldChar,int len) {
+  if(oldChar!=NULL) { 
+    int blen=newCharLen(oldChar);
+    if(blen>len) { 
+      for(int i=0;i<blen-1;i++) { oldChar[i]=' ';}  oldChar[len-1]='\0';  
+      return oldChar; }
+    else { delete oldChar; }
+  }
+  int size=len; if(len<minValueLen) { size=minValueLen; }
+  char *newChar= new char[size+1]; 
+  for(int i=0;i<size-1;i++) { newChar[i]=' ';} newChar[len-1]='\0'; newChar[size]='\0'; // double \0
+  return newChar;
+}
+
+/* buffered copy char (buffer first:\0 end of char, second:\0 end of buffer) */
+char* newChar(char *oldChar,char *str) {
+  if(str==NULL) { if(oldChar!=NULL) { oldChar[0]='\0'; } return oldChar; }
+  int len=strlen(str);
+  oldChar=newChar(oldChar,len+1);
+  memcpy(oldChar, str, len); //to[len]='\0';   
+  return oldChar;
+}  
+
+/* buffered char len */
+int newCharLen(char *oldChar) {
+  if(oldChar==NULL) { return 0; }
+  byte count=0; int blen=0; while(count<2) { if(oldChar[blen++]=='\0') { count++; } }
+  return blen; 
+}
+
+//-----------------------------------------------------------------------------
+// dynamic memory
 
 /* concat char to new char*, use NULL as END, (e.g char *res=concat("one","two",NULL); ), dont forget to free(res); */
 char* concat(char* first, ...) {
@@ -234,7 +520,7 @@ char* concat(char* first, ...) {
     va_list args;
     va_start(args, first);
     size_t l=0;
-    for (char* s = first; is(s) && (l=strlen(s))>0; s = va_arg(args, char*)) {  total_len += l;  }
+    for (char* s = first; s != NULL && (l=strlen(s))>0; s = va_arg(args, char*)) {  total_len += l;  }
     va_end(args);
 
     char *result = (char*)malloc(sizeof(char) *(total_len + 1)); // +1 for null terminator
@@ -242,7 +528,7 @@ char* concat(char* first, ...) {
     result[0] = '\0'; // initialize empty string
 
     va_start(args, first);
-    for (char* s = first; is(s); s = va_arg(args, char*)) { strcat(result, s); }
+    for (char* s = first; s != NULL; s = va_arg(args, char*)) { strcat(result, s); }
     va_end(args);
     return result;
 }
@@ -253,14 +539,14 @@ char* concat(char* first, ...) {
 char* copy(char* org) { 
   if(org==NULL) { return NULL; }
   int len=strlen(org);
-  char* newStr=new char[len+1]; 
+  char* newStr=newChar(len+1); 
   memcpy( newStr, org, len); newStr[len]='\0'; 
   return newStr;
 }
 
 /* create a copy of org with new char[max] (NEW CHAR[])*/
 char* copy(char *to,char* org,int max) { 
-  if(to==NULL) { to=new char[max+1]; }
+  if(to==NULL) { to=newChar(max+1); }
   if(to==NULL) { espRestart("copy() memory error"); }
   if(org!=NULL) { 
     int len=strlen(org); if(len>max) { len=max; }
@@ -292,41 +578,7 @@ char* copy(String str,char* def) {
   int len  =str.length()+1; if(len==0) { return def; } char ca[len]; str.toCharArray(ca,len); return(ca);
 }
 
-//------------------------------------
-
-
-/* replace all old_car with new_cahr in str 
-    e.g. replace(str,' ','+');
-*/
-void replace(char *str, char old_char, char new_char) {
-    if (str == NULL) { return; }
-    while (*str != '\0') { // Iterate through the string until the null terminator
-        if (*str == old_char) { *str = new_char; } // Replace the character
-        str++; // Move to the next character
-    }
-}
-
-/* return if str ends with find 
-    e.g. if(endsWith(str,".gif"))
-*/
-boolean endsWith(char *str,char *find) {
-  if(str==NULL || find==NULL) { return false; }
-  int len=strlen(str);
-  int findLend=strlen(find);
- return len >= findLend && strcmp(str + len - findLend, find) == 0;
-}
-
-/* return if str start with find 
-    e.g. if(startWith(str,"/"))
-*/
-boolean startWith(char *str,char *find) {
-  if(!is(str) || !is(find)) { return false; }
-  //return strcmp(str, find) == 0;
-  int l1=strlen(str); int l2=strlen(find);
-  if(l1<l2) { return false; }
-  for(int i=0;i<l2;i++) {  if(*str++!=*find++) { return false; } }
-  return true;
-}
+//------------------------------------------------------------------
 
 /* extract from src (NEW char[]) (e.g. is=extract(".",":","This.is:new") )*/
 char* extract(char *start, char *end, char *src) {
@@ -343,199 +595,9 @@ char* extract(char *start, char *end, char *src) {
     }else  {
       len=strlen(start_ptr);
     }
-    char *result=new char(len+1);
+    char *result=newChar(len+1);
     strncpy(result, start_ptr, len);  result[len] = '\0';  
     return result;
-}
-
-/* validate is cstr equals to find  
-    e.g. if(equals(cmd,"stat")) */
-boolean equals(char *str,char *find) {
-  if(!is(str) || !is(find)) { return false; }
-  int l1=strlen(str); int l2=strlen(find); 
-  if(l1!=l2) { return false; }
-  for(int i=0;i<l2;i++) {        
-    if(*str!=*find) { return false; } 
-    str++; find++;
-  }  
-  return true;
-}
-
-/* size/len of text  
-    int len=size(text);
-*/
-int size(char *text) { if(text==NULL) { return -1; } else { return strlen(text); }}
-
-/* insert at pos into buffer */
-void insert(char* buffer,int pos,char* insertText) {
-    size_t insertLen = strlen(insertText);
-    size_t len = strlen(buffer);
-    size_t newLen = insertLen + len;      
-    // Shift existing text to the right
-    memmove(buffer + pos + insertLen, buffer + pos , len - pos + 1);  // +1 for null terminator
-    // Copy the prefix at the beginning
-    memcpy(buffer+pos, insertText, insertLen);
-} 
-
- 
-/*  validate if chars not NULL  
-    e.g. if(is(text))
-*/
-boolean is(char *p) { return p!=NULL && p!=EMPTY; }
-/*  validate if chars have size betwee >=min <max
-    e.g. if(is(text,1,32))
-*/
-boolean is(char *p,int min,int max) { return p!=NULL && strlen(p)>=min && strlen(p)<max; }
-
-boolean is(String str) { return (str!=NULL || str!=EMPTYSTRING); }
-boolean is(String str,int min,int max) { if(str==NULL || str==EMPTYSTRING ) { return false; } int len=str.length(); return len>=min && len<max; }
-
-/* convert to correct char */
-char* to(byte d) { sprintf(buffer,"%d",d); return buffer; }
-char* to(int d) { sprintf(buffer,"%d",d); return buffer; }
-char* to(long d) { sprintf(buffer,"%d",d); return buffer; }
-char* to(boolean d) { sprintf(buffer,"%d",d); return buffer; }
-char* to(double d) { sprintf(buffer,"%.2f",d); return buffer; }
-char* to(char *p) {if(p!=NULL && strlen(p)>0 && strlen(p)<bufferMax) { return p; } else { return EMPTY; } }
-const char* to(const char *p) {if(p!=NULL && strlen(p)>0 && strlen(p)<bufferMax) { return p; } else { return EMPTY; } }
-
-char* to(char *a,char *b) { sprintf(buffer,"%s%s",to(a),to(b)); return buffer; }
-char* to(const char *a, const char *b,const char *c) {  sprintf(buffer,"%s%s%s",to(a),to(b),to(c)); return buffer; }
-char* to(const char *a, const char *b,const char *c,const char *d) {  sprintf(buffer,"%s%s%s%s",to(a),to(b),to(c),to(d)); return buffer; }
-char* to(const char *a, const char *b,const char *c,const char *d,const char *e) {  sprintf(buffer,"%s%s%s%s%s",to(a),to(b),to(c),to(d),to(e)); return buffer; }
-
-/* convert cahr* to string */
-String toString(const char *text) {  if(!is(text)) { return EMPTYSTRING; } return String(text); }
-String toString(char *text) {  if(!is(text)) { return EMPTYSTRING; } return String(text); }
-
-boolean toBoolean(int i) { return i>0; }
-/* convert char* to boolean */
-boolean toBoolean(char *p) { return p!=NULL && strlen(p)>0 && (strcmp(p, "on")==0 || strcmp(p, "true")==0 || atoi(p)>0); }
-/* convert char* to int */
-int toInt(char *p) { 
-  if(!is(p)) { return -1; }
-  else if(isInt(p)) { return atoi(p); } 
-  if(toBoolean(p)) { return 1; }else { return 0; } 
-} 
-/* convert char* to double */
-double toDouble(char *p) { 
-  if(!is(p)) { return -1; }
-  else if(isDouble(p)) { return atof(p); }
-  if(toBoolean(p)) { return 1; } else { return 0; } 
-}
-/* convert char* to long */
-long int toLong(char *p) { 
-  if(!is(p)) { return -1; }
-  else if(isInt(p)) { return atol(p); } 
-  if(toBoolean(p)) { return 1; }else { return 0; } 
-}
-/* convert char* to unsigned long */
-unsigned long toULong(char *p) { 
-  if(!is(p)) { return -1; }
-  else if(isBoolean(p)) {  if(toBoolean(p)) { return 1; }else { return 0; } }
-  else { return strtoul(p, NULL, 0); } 
-}
-
-boolean isDouble(char *p) {
-  char *x=p;
-  if (x==NULL || x==EMPTY || *x == '\0') { return false; } // Empty string is not a number
-  else if (*x == '+' || *x == '-')  { x++; } // Handle optional sign
-  while (*x) { if (!isdigit(*x) && *x!='.') { return false; } else { x++;} }// Non-digit character found
-  return true;  // All characters are digits
-}
-
-boolean isInt(char *p) {
-  char *x=p;
-  if (x==NULL || x==EMPTY || *x == '\0') { return false; } // Empty string is not a number
-  else if (*x == '+' || *x == '-')  { x++; } // Handle optional sign
-  while (*x) { if (!isdigit(*x)) { return false; } else { x++;} }// Non-digit character found
-  return true;  // All characters are digits
-}
-
-boolean isBoolean(char *p) { 
-  char *x=p;
-  if (x==NULL || x==EMPTY || *x == '\0') { return false; } // Empty string is not a number
-  if(*x=='t' || *x=='T' || *x=='f' || *x=='F') { return true; }
-  return false;
-}
-
-//-----------------------------------------------------------------------------
-
-/* append text1 and text2 => text1text2 (by use paramBuffer) 
-    e.g. char* param=paramAppend("/",file)
-*/
-char* paramAppend(char *text1,char *text2) {  
-  if(size(text1)+size(text2) >= paramBufferMax) { return NULL; }
-  paramBuffer[0]= '\0';  
-  if(is(text1)) { strcpy(paramBuffer, text1);  }
-  if(is(text2)) { strcat(paramBuffer, text2); }
-  return paramBuffer;
-}
-
-//-----------------------------------------------------------------------------
-// ESP Tools
-
-/* reboot esp 
-    e.g. espRestart("restart after time")
-*/
-void espRestart(char* message) {  
-  if(serialEnable) { Serial.print("### Rebooting "); Serial.println(message); delay(1000); }
-  ESP.restart();
-}
-
-/* espChip ID */
-uint32_t espChipId() {
-  #ifdef ESP32
-    uint32_t chipId=0;
-    for (int i = 0; i < 17; i = i + 8) { chipId |= ((ESP.getEfuseMac() >> (40 - i)) & 0xff) << i;}
-    return chipId;
-  #elif defined(ESP8266)
-    return ESP.getChipId();
-  #endif
-}
-
-/* esp info */
-char* espInfo() {
-    sprintf(buffer,"ESP chip:%d free:%d/%d core:%s freq:%d flashChipId:%d flashSize:%d flashSpeed:%d SketchSize:%d FreeSketchSpace:%d",    
-      espChipId(),ESP.getFreeHeap(),freeHeapMax, ESP.getSdkVersion(),ESP.getCpuFreqMHz()
-      ,ESP.getFlashChipMode(),ESP.getFlashChipSize(),ESP.getFlashChipSpeed(),ESP.getSketchSize(),ESP.getFreeSketchSpace());           
-    return buffer;
-}
-
-//-----------------------------------------------------------------------------
-// Log
-
-void webLogLn(String msg); // define in web
-void mqttLog(char *message); // define in mqtt
-
-/* log with level 
-    e.g. logPrintln(LOG_INFO,"info"); 
-        sprintf(buffer,"name:'%s'",name);logPrintln(LOG_INFO,buffer);  
-*/
-void logPrintln(int level,const char *text) { 
-  if(level>logLevel || !is(text)) { return ; }
-  if(serialEnable) { Serial.println(text); } 
-  if(webEnable) { webLogLn(toString(text)); }
-  if(mqttLogEnable) { mqttLog((char*)text); }
-}
-
-/* log with lvel and string 
-    e.g. logPrintln(LOG_DEBUG,"info text");
-*/
-void logPrintln(int level,String text) {  
-  if(level>logLevel || !is(text)) { return ; } 
-  const char* log=text.c_str();
-  if(serialEnable) { Serial.println(log); } 
-  if(webEnable) { webLogLn(text); }
-  if(mqttLogEnable) { mqttLog((char*)log); }
-}
-
-/* set actual logLevel - log this level and above
-    e.g. setLogLevel(LOG_DEBUG) 
-*/
-char* setLogLevel(int level) {
-  if(level>=0) { logLevel=level; }
-  sprintf(buffer,"%d",logLevel); return buffer;
 }
 
 
@@ -610,7 +672,7 @@ char* setLogLevel(int level) {
     if(ff==NULL) { sprintf(buffer,"fsRead unkown '%s'",file.c_str());logPrintln(LOG_INFO,buffer);   return NULL; } 
     size_t fileSize= ff.size();
 
-    char *charArray = new char[fileSize + 1];
+    char *charArray = newChar(fileSize + 1);
     ff.readBytes(charArray, fileSize);
     charArray[fileSize] = '\0';
     ff.close();
@@ -624,7 +686,7 @@ char* setLogLevel(int level) {
         size_t dataSize = 0; // gif data size
         uint8_t *data = fsReadBin(name, dataSize); 
         delete[] data;
-  */
+*/        
   uint8_t* fsReadBin(String file, size_t& fileSize) {
     if(!is(file)) { return NULL; }
     else if(!file.startsWith(rootDir)) { file=rootDir+file; }
@@ -639,7 +701,7 @@ char* setLogLevel(int level) {
     sprintf(buffer,"fsReadBin '%s' %d",file.c_str(),fileSize);logPrintln(LOG_INFO,buffer);  
     return byteArray;
   }
-
+  
 
   int fsSize(String file) { 
     if(!is(file)) { return -1; }
@@ -1025,6 +1087,7 @@ void timeLoop() {
     timerLoop();
   }
 }
+
 
 //------------------------------------------------------------
 // Attr
@@ -2426,8 +2489,7 @@ WiFiClient *mqttWifiClient=NULL;
 
 PubSubClient *mqttClient=NULL;
 
-static char* mqttTopic=new char[64]; // buffer of topic
-static char* mqttMessage=new char[1024]; // buffer of message
+//static char* mqttTopic=new char[64]; // buffer of topic
 
 //-------------------------------------------------------------------------------------
 // mqtt-url:  mqtt://USER:PAS@SERVER:PORT or mqtts://USER:PAS@SERVER:PORT /
@@ -2479,17 +2541,14 @@ char* mqttSet(char* mqtt) {
 }
 
 
+
 //-------------------------------------------------------------------------------------
 // publish messages
 
 /* publich log to mqtt */
 void mqttLog(char *message) {
-  if(eeBoot.mqttLogEnable) {
-      if (mqttStatus != 2) { return ; }
-      sprintf(mqttTopic,"%slog",mqttTopicStat);
-      mqttClient->publish(mqttTopic, message);
-  }
 }
+
 
 /* subcribe topic to attr */
 boolean mqttAttr(char* name,char *topic) {
@@ -2562,24 +2621,25 @@ void mqttPublishState(char *name,char *message) {
 //-------------------------------------------------------------------------------------
 // Receive messages
 
-void mqttReceive(char* topic, byte* payload, unsigned int length) {  
-
-  char *msg=copy(NULL,(char*)payload,length);
+void mqttReceive(char* topic, byte* payload, unsigned int length) {    
+//  char *msg=copy(NULL,(char*)payload,length);
+  if(length>=bufferMax) { logPrintln(LOG_ERROR,"mqtt msg to long"); return ; }
+  memcpy( buffer, payload, length); buffer[length]='\0'; char *msg=buffer;
 
   if (mqttCmdEnable && strcmp(topic,mqttTopicCmd) == 0) {   // call cmd     
-    sprintf(buffer,"MQTT cmd '%s' %s %d", topic, msg,length); logPrintln(LOG_DEBUG,buffer);
     char *result=cmdLine(msg); 
-    free(msg);
+//    free(msg);
+    sprintf(buffer,"MQTT cmd '%s' %d", topic, length); logPrintln(LOG_DEBUG,buffer);
     mqttPublishState("cmd",result);
 
   }else if(mqttOnMsg(topic,msg)) {
-     free(msg);
+//     free(msg);
      return ;
      
   } else if(attrMap.find(topic)!=-1) {  // set topic as attribute 
     attrMap.replace(topic,(char*)payload,length);
     sprintf(buffer,"MQTT attrSet '%s'", topic); logPrintln(LOG_DEBUG,buffer);
-    free(msg);
+//    free(msg);
 
 /*
   #if mqttDiscovery  
@@ -2596,7 +2656,7 @@ void mqttReceive(char* topic, byte* payload, unsigned int length) {
   } else { 
     boolean ok=paramSet(topic,msg); // set as param
     if(!ok) { sprintf(buffer,"MQTT unkown topic '%s'", topic); logPrintln(LOG_DEBUG,buffer); }    
-    free(msg);
+//    free(msg);
   }
 
 }
@@ -3391,6 +3451,9 @@ Serial.println("REQUEST END");
     }
   }
 
+  // log to telnet client
+  void telnetLog(char *text) { if(telnetClient) { telnetClient.println(text); } }
+
   //------------------------------------
 
   void telnetSetup() {
@@ -3405,6 +3468,7 @@ Serial.println("REQUEST END");
 #else 
   void telnetSetup() {}
   void telnetLoop() {}
+  void telnetLog(char *text) {}
 #endif
 
 
@@ -3963,7 +4027,6 @@ void cmdOSLoop() {
   ledLoop(); 
   swLoop(); 
   cmdLoop();
-
   timeLoop();
 
   if(isModeNoSystemError()) {
@@ -3979,4 +4042,6 @@ void cmdOSLoop() {
   }
   delay(0);
 }
+
+
 
