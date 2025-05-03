@@ -130,18 +130,26 @@ char *haStatePrefix="homeassistant2/";
 
 class DisValue {
   private:
-    byte _type;
 
     void init(char *config) {
-      valKey=copy(config); // e.g switch.tasmota
-      char *haType=extract(NULL,".",valKey);
-      char *haName=extract(".",NULL,valKey);            
+      char *haId=paramNext(&config,",");
+      if(haId==NULL) { return ; }
+      valKey=copy(valKey,haId); // e.g switch.tasmota
+      char *haType=extract(NULL,".",haId);
+      char *haName=extract(".",NULL,haId);            
       valRemote=concat(haStatePrefix,haType,"/",haName,"/state",NULL); // e.g. "homeassistant2/switch/tasmota/state";
-      sprintf(buffer,"DisValue type:%d key:%s haType:%s haName:%s valRemote:%s",_type,valKey,haType,haName,valRemote); logPrintln(LOG_DEBUG,buffer);      
+      sprintf(buffer,"DisValue type:%d key:%s haType:%s haName:%s valRemote:%s",to(type),to(valKey),to(haType),to(haName),to(valRemote)); logPrintln(LOG_DEBUG,buffer);      
+
+//      type=paramNext(&config,",");
+      valType=toInt(paramNext(&config,","));
+
+      minF=toDouble(paramNext(&config,","));
+      medF=toDouble(paramNext(&config,","));
+      maxF=toDouble(paramNext(&config,","));
     }
 
   public:
-
+    char *type;
   //  char *valName="val";
     char *valKey; //="value";
     char *valRemote; //="homeassistant2/switch/tasmota/state";
@@ -173,6 +181,7 @@ class DisValue {
       drawRect(x,y,w,w,col_red); drawLine(x,y,x+w,y+w,col_red);drawLine(x,y+w,x+w,y,col_red); 
     }
     void draw(char *val) {
+      if(is(type)) { val=type; } 
       if(x<0) { x=10; y=10; }
       if(w<0) { w=pixelX-x*2; if(pixelY<pixelX) { w=pixelY-y*2; } }
       if(!is(val)) { drawUnkown(); return ; } // draw unkown
@@ -180,9 +189,9 @@ class DisValue {
       drawValue(valType,x,y,w,valKey,val,minF,medF,maxF,col1,col2,col3);
     }  
     char* toString() {
-      sprintf(buffer,"DisValue type:%d key:%s valRemote:%s valType:%d",_type,valKey,valRemote,valType); return buffer;
+      sprintf(buffer,"DisValue type:%d key:%s valRemote:%s valType:%d",type,valKey,valRemote,valType); return buffer;
     }
-    DisValue(char *config) { init(config); }
+    DisValue(char *config) { valKey=NULL; init(config); }
 };
 
 DisValue *stateValue=NULL;

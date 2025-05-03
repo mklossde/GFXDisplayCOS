@@ -489,9 +489,9 @@ char* newChar(char *oldChar,int len) {
     else { delete oldChar; }
   }
   int size=len; if(len<minValueLen) { size=minValueLen; }
-  char *newChar= new char[size+1]; 
-  for(int i=0;i<size-1;i++) { newChar[i]=' ';} newChar[len-1]='\0'; newChar[size]='\0'; // double \0
-  return newChar;
+  char *nc= new char[size+1]; 
+  for(int i=0;i<size-1;i++) { nc[i]=' ';} nc[len-1]='\0'; nc[size]='\0'; // double \0
+  return nc;
 }
 
 /* buffered copy char (buffer first:\0 end of char, second:\0 end of buffer) */
@@ -686,7 +686,7 @@ char* extract(char *start, char *end, char *src) {
         size_t dataSize = 0; // gif data size
         uint8_t *data = fsReadBin(name, dataSize); 
         delete[] data;
-*/        
+*/
   uint8_t* fsReadBin(String file, size_t& fileSize) {
     if(!is(file)) { return NULL; }
     else if(!file.startsWith(rootDir)) { file=rootDir+file; }
@@ -701,7 +701,7 @@ char* extract(char *start, char *end, char *src) {
     sprintf(buffer,"fsReadBin '%s' %d",file.c_str(),fileSize);logPrintln(LOG_INFO,buffer);  
     return byteArray;
   }
-  
+
 
   int fsSize(String file) { 
     if(!is(file)) { return -1; }
@@ -1231,6 +1231,39 @@ boolean paramsAdd(AppParam *p) {
 }
 */
 
+//------------------------------------------------------------
+
+void paramSkipSpace(char **pp) {
+    if(pp==NULL || *pp==NULL || **pp=='\0') { return ; }    
+    while(**pp==' ' || **pp=='\t') { (*pp)++; } // skip spaces and tabs    
+}
+
+void paramTrim(char **pp) {
+  if(pp==NULL) { return ; }
+  paramSkipSpace(pp);
+  int i=strlen(*pp); while(i>=0 && **pp==' ') { i--; }
+  *pp[i]='\0';  
+}
+
+/* read next param */
+char* paramNext(char **pp,char *split) {
+    paramSkipSpace(pp);
+    if(pp==NULL || *pp==NULL || **pp=='\0') { return NULL; }
+
+    char* p1;    
+    if(**pp=='"') { // read string "param"
+      (*pp)++; // skip first "
+      p1 = strtok_r(NULL, "\"",pp);  
+      if(p1==NULL) { return EMPTY; }   
+      return p1;   
+
+    }else { 
+      p1 = strtok_r(NULL, split,pp);            
+    }
+
+    return p1;
+}
+
 
 //-------------------------------------------------------------------------------------------------------------------
 // LED
@@ -1614,7 +1647,6 @@ char* swInit(int pin, boolean on, byte mode, int timeBase, byte tickShort, byte 
 }
 
 #endif
-
 
 //--------------------------------------------------------------------------------------
 //  Wifi
@@ -2477,6 +2509,7 @@ char *mqttTopicReceive; // topic path of all commands (e.g. device/esp/EspBoot00
 
 char* mqttTopicCmd=NULL; // topic for cmd messages (e.g. device/esp/EspBoot00DC9235/control/cmd)
 char* mqttTopicResponse=NULL; // topic for resposne of cmd messages (e.g. device/esp/EspBoot00DC9235/stat_cmd) 
+char *mqttTopicLog=NULL;
 
 WiFiClient *mqttWifiClient=NULL;
 #ifdef ESP32
@@ -2489,7 +2522,6 @@ WiFiClient *mqttWifiClient=NULL;
 
 PubSubClient *mqttClient=NULL;
 
-//static char* mqttTopic=new char[64]; // buffer of topic
 
 //-------------------------------------------------------------------------------------
 // mqtt-url:  mqtt://USER:PAS@SERVER:PORT or mqtts://USER:PAS@SERVER:PORT /
@@ -2547,8 +2579,11 @@ char* mqttSet(char* mqtt) {
 
 /* publich log to mqtt */
 void mqttLog(char *message) {
+  if(eeBoot.mqttLogEnable) {
+      if (mqttStatus != 2) { return ; }
+      mqttClient->publish(mqttTopicLog, message);
+  }
 }
-
 
 /* subcribe topic to attr */
 boolean mqttAttr(char* name,char *topic) {
@@ -2716,6 +2751,7 @@ void mqttInit() {
   mqttTopicOnline=concat(mqttPrefix,"/",eeBoot.espName,"/online",NULL); // availability/online
   mqttTopicStat=concat(mqttPrefix,"/",eeBoot.espName,"/stat_",NULL); 
   mqttTopicReceive=concat(mqttPrefix,"/",eeBoot.espName,"/control/",NULL);
+  if(mqttLogEnable) { mqttTopicLog=concat(mqttPrefix,"/",eeBoot.espName,"/log",NULL); }
 
   mqttClient->setBufferSize(512); // extends mqtt message size
   mqttClient->setCallback(mqttReceive);     
@@ -3624,6 +3660,7 @@ char* cmdExec(char *cmd, char **param) {
   return ret;
 }
 
+
 //------------------------------------------------------------------------------------------------
 
 unsigned long *_prgTime = new unsigned long(0);
@@ -3810,49 +3847,36 @@ int xCalc(int ai,char *calc,char **param) {
 int calcParam(char **param) { return calcParam(cmdParam(param),param); }
 int calcParam(char *val,char **param) {
   int a=toInt(val);
-  cmdParamSkip(param); // skip spaces
+  paramSkipSpace(param); // skip spaces
   while(pIsCalc(*param))  {    
     char *calc=cmdParam(param);       
     a=xCalc(a,calc,param);
-    cmdParamSkip(param); // skip spaces
+    paramSkipSpace(param); // skip spaces
   }
   return a;
 }
 
-void cmdParamSkip(char **pp) {
-    if(pp==NULL || *pp==NULL || **pp=='\0') { return ; }    
-    while(**pp==' ' || **pp=='\t') { (*pp)++; } // skip spaces and tabs    
-}
-
 /* read next param */
 char* cmdParam(char **pp) {
-    cmdParamSkip(pp);
-    if(pp==NULL || *pp==NULL || **pp=='\0') { return EMPTY; }
+    char *p1=paramNext(pp," ");
+    if(p1==NULL) { return EMPTY; }
 
-    char* p1;    
-    if(**pp=='"') { // read string "param"
-      (*pp)++; // skip first "
-      p1 = strtok_r(NULL, "\"",pp);  
-      if(p1==NULL) { return EMPTY; }   
-      return p1;   
-
-    }else if(**pp=='$') { // attribute
-      (*pp)++; // skip first $
-      p1 = strtok_r(NULL, " ",pp); 
+Serial.print("a:");Serial.println(p1);
+    if(*p1=='$') { // attribute
+      p1++; // skip first $
+Serial.print("b:");Serial.println(p1);      
       p1=attrGet(p1);
-    }else if(**pp=='~') { // sysAttribute
-      (*pp)++; // skip first $
-      p1 = strtok_r(NULL, " ",pp); 
+Serial.print("c:");Serial.println(p1);            
+    }else if(*p1=='~') { // sysAttribute
+      p1++; // skip first $
       p1=sysAttr(p1);
-    }else if(pIsNumber(*pp) || pIsCalc(*pp)) {
-        p1 = strtok_r(NULL, " ",pp);  
-    }else { 
-      p1 = strtok_r(NULL, " ",pp);            
+    }else if(pIsNumber(p1) || pIsCalc(p1)) {
+    }else {   
       if(is(p1)) { p1=cmdExec(p1, pp); }
     }
 
     if(p1==NULL) { return EMPTY; } 
-    cmdParamSkip(pp); // skip spaces
+    paramSkipSpace(pp); // skip spaces
     if(pIsCalc(*pp)) { // next param calc 
       sprintf(buffer,"  calc after %s",p1); logPrintln(LOG_DEBUG,buffer);
       int ret=calcParam(p1,pp);
@@ -4042,6 +4066,5 @@ void cmdOSLoop() {
   }
   delay(0);
 }
-
 
 

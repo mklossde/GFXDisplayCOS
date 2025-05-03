@@ -69,14 +69,17 @@ void drawGauge(int x,int y,int w,int d1,int p,char *value,double min,double med,
 /* draw on button e.g. drawOn 10 10 5 2 1 -1 2016 */
 void drawOn(int x,int y,int w,int p,char *value,double min,double med,double max,int col1,int col2,int col3) {
   fillCircle(x,y,w,col1);  
+  fillCircle(x,y,w-p,col_black);
+
   double val=toDouble(value);
-  boolean on=f>0;
+  boolean on=val>0;
 //  int minInt=toInt(min),valueInt=toInt(value),maxInt=toInt(max)-minInt;
 //  int medInt=toInt(med);
   if(med>0 && val>med) { col2=col3; }
-  if(on) { fillCircle(x,y,w-p,col2); }
+  if(on) { fillCircle(x,y,w-(p*2),col2); }
   drawText(x,y-fontSize*4,fontSize,to(value),col1,0);
 }
+
 
 //-------------------------------------------
 
@@ -112,16 +115,24 @@ void valueGauge(int x,int y,int w,char *text,char *value,char *min,char *med,cha
 void drawValue(int type,int x,int y,int w,char *text,char *value,double min,double med,double max,int col1,int col2,int col3) {  
   int w2=w/2;
   drawText(x+w2,y,fontSize,text,col1,0);
+Serial.print("text:");Serial.println(to(text));  
+  y+=fontSize*8;
+  w-=fontSize*8*2;
+  w2=w/2;
+  if(col1<0) { col1=12678;}if(col2<0) { col2=63488;} if(col3<0) { col3=43136;}
 
-  if(type==0) { 
-    if(col1<0) { col1=12678;}if(col2<0) { col2=63488;}if(col3<0) { col3=43136;}
+  if(type<=0) {     
     int d1=w/20;
     drawGauge(x+w2,y+w2+fontSize*8+5,w2,d1,1,value,min,med,max,col1,col2,col3);
   }else if(type==1) { 
+    if(col1<0) { col1=12678;}if(col2<0) { col2=1344;} if(col3<0) { col3=43136;}
     drawBar(x,y+fontSize*8+5,w,w/4,2,value,min,med,max,col1,col2,col3);
-  }else {
-
+  }else if(type==2) { 
+    if(col1<0) { col1=12678;}if(col2<0) { col2=1344;} if(col3<0) { col3=43136;}
     drawOn(x+w2,y+w2,w2,4,value,min,med,max,col1,col2,col3);
+  }else {
+    if(med>0 && toDouble(value)>med) { col2=col3; }
+    drawText(x+w2,y+w2,fontSize*2,to(value),col2,0);
   }
 }
 
