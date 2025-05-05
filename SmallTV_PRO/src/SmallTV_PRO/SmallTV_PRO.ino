@@ -11,7 +11,7 @@
 #include <privatdata.h>
 
 const char *prgTitle = "SmallTVPROCOS";
-const char *prgVersion = "V0.3.0";
+const char *prgVersion = "V0.4.0";
 
 const char* user_admin = "admin"; // default user
 char user_pas[]="admin";   // default espPas
@@ -82,7 +82,6 @@ char* appCmd(char *cmd, char **param) {
 
 /** call on mqtt startup */
 void mqttOnConnect() {
-Serial.println("mqttOnConnect") ;
   #if mqttDiscovery
     mqttDiscover("text","page",true,true); // set page ##page##
     mqttDiscover("text","display",true,true); // set page

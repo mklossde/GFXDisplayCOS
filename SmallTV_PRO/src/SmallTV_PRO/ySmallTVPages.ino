@@ -30,7 +30,7 @@ void pageTitle() {
   // version
   drawText(1,pixelY-(8*fontSize),fontSize,prgVersion,col_red,-1);   
   // FreeHeap
-  drawFull(pixelX-30,100,20,100,2,(int)ESP.getFreeHeap(),150000,col_red,col_white);
+  drawFull(pixelX-30,100,20,100,2,(int)ESP.getFreeHeap(),freeHeapMax,col_red,col_white);
 
   if(eeMode!=EE_MODE_OK) {
     fillRect(pixelX-(8*fontSize)-5,pixelY-(8*fontSize)-1,pixelX,pixelY,col_red);
@@ -134,18 +134,20 @@ class DisValue {
     void init(char *config) {
       char *haId=paramNext(&config,",");
       if(haId==NULL) { return ; }
-      valKey=copy(valKey,haId); // e.g switch.tasmota
+      valKey=newChar(valKey,haId); // e.g switch.tasmota
       char *haType=extract(NULL,".",haId);
       char *haName=extract(".",NULL,haId);            
-      valRemote=concat(haStatePrefix,haType,"/",haName,"/state",NULL); // e.g. "homeassistant2/switch/tasmota/state";
+      //valRemote=concat(haStatePrefix,haType,"/",haName,"/state",NULL); // e.g. "homeassistant2/switch/tasmota/state";
+      sprintf(buffer,"%s%s/%s/stat",to(haStatePrefix),to(haType),to(haName));      
+      valRemote=newChar(valRemote,buffer);
       sprintf(buffer,"DisValue type:%d key:%s haType:%s haName:%s valRemote:%s",to(type),to(valKey),to(haType),to(haName),to(valRemote)); logPrintln(LOG_DEBUG,buffer);      
 
-      type=paramNext(&config,",");
-//      valType=toInt(paramNext(&config,","));
+//      type=paramNext(&config,",");
+      valType=toInt(paramNext(&config,","));
 
-//      minF=toDouble(paramNext(&config,","));
-//      medF=toDouble(paramNext(&config,","));
-//      maxF=toDouble(paramNext(&config,","));
+      minF=toDouble(paramNext(&config,","));
+      medF=toDouble(paramNext(&config,","));
+      maxF=toDouble(paramNext(&config,","));
     }
 
   public:
@@ -171,8 +173,8 @@ class DisValue {
     }
 
     void reinit(char *config) {
-      if(valKey!=NULL) { free(valKey); }
-      if(valRemote!=NULL) { free(valRemote); }
+//      if(valKey!=NULL) { free(valKey); }
+//      if(valRemote!=NULL) { free(valRemote); }
       valF=-1,minF=999999,maxF=0,medF=-1;
       init(config);
     } 
@@ -206,6 +208,7 @@ void pageState() {
 void pageStateValue() {
 //TODO get via pram ?  
   char *val=attrGet(stateValue->valKey); 
+Serial.println("val:"); Serial.println(to(val)); 
   stateValue->draw(val); 
 }
 

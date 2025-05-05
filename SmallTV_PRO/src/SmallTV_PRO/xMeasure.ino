@@ -113,13 +113,13 @@ void valueGauge(int x,int y,int w,char *text,char *value,char *min,char *med,cha
 
 /* draw value with name+value */
 void drawValue(int type,int x,int y,int w,char *text,char *value,double min,double med,double max,int col1,int col2,int col3) {  
+  if(col1<0) { col1=12678;}if(col2<0) { col2=63488;} if(col3<0) { col3=43136;}
   int w2=w/2;
-  drawText(x+w2,y,fontSize,text,col1,0);
-Serial.print("text:");Serial.println(to(text));  
+  drawText(x+w2,y-fontSize,fontSize,text,col1,0);
+
   y+=fontSize*8;
   w-=fontSize*8*2;
   w2=w/2;
-  if(col1<0) { col1=12678;}if(col2<0) { col2=63488;} if(col3<0) { col3=43136;}
 
   if(type<=0) {     
     int d1=w/20;

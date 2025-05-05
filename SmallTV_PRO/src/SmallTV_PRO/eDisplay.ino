@@ -1,7 +1,7 @@
 
 //----------------------------------------------------
 // GFXDisplaCOS
-const char *GFXDisplaCOSVersion = "V0.3.0";
+const char *GFXDisplaCOSVersion = "V0.4.0";
 
 #include <Arduino.h>
 #include <Adafruit_GFX.h>
