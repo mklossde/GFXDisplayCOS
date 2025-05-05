@@ -34,7 +34,7 @@ boolean wifiEnable=true;  // enable/disbale wifi
 #define ntpEnable false     // enable time server
 #define enableFs true         // enable fs / SPIFFS
 
-#define netEnable false       // enable/disbale network ping/dns/HttpCLient 
+#define netEnable true       // enable/disbale network ping/dns/HttpCLient 
 #define telnetEnable false       // enable/disbale telnet
 #define webSerialEnable false // enable/disbale web serial
 #define mqttEnable true      // enable/disbale mqtt

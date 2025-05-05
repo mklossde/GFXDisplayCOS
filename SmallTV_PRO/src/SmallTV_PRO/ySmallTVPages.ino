@@ -154,9 +154,10 @@ class DisValue {
     char *type;
   //  char *valName="val";
     char *valKey; //="value";
-    char *valRemote; //="homeassistant2/switch/tasmota/state";
+    char *valRemote; //="homeassistant2/switch/tasmota/state";    
     int valType=0;
-
+    char *valImage;
+    
     double valF=-1;
     double minF=999999;
     double maxF=0;

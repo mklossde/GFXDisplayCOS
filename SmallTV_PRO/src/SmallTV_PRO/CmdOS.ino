@@ -707,7 +707,7 @@ char* extract(char *start, char *end, char *src) {
     if(!is(file)) { return -1; }
     else if(!file.startsWith(rootDir)) { file=rootDir+file; }
     File ff = FILESYSTEM.open(file,"r");
-    if(ff==NULL) { sprintf(buffer,"missing fsSize %s",file.c_str());logPrintln(LOG_INFO,buffer); return -1; } 
+    if(ff==NULL) { return -1; } 
     int len=ff.size();
     ff.close();
     return len;
@@ -808,7 +808,7 @@ char* extract(char *start, char *end, char *src) {
       if(!name.startsWith("/")) { name="/"+name; }
 
       // check redownload 
-      if(fsSize(name)!=-1) {
+      if(fsSize(name)>0) {
         if(reload==-1) { sprintf(buffer,"download foundOld '%s'",name); return buffer; }
       }
 
@@ -3868,12 +3868,12 @@ char* cmdParam(char **pp) {
     char *p1=paramNext(pp," ");
     if(p1==NULL) { return EMPTY; }
 
-Serial.print("a:");Serial.println(p1);
+//Serial.print("a:");Serial.println(p1);
     if(*p1=='$') { // attribute
       p1++; // skip first $
-Serial.print("b:");Serial.println(p1);      
+//Serial.print("b:");Serial.println(p1);      
       p1=attrGet(p1);
-Serial.print("c:");Serial.println(p1);            
+//Serial.print("c:");Serial.println(p1);            
     }else if(*p1=='~') { // sysAttribute
       p1++; // skip first $
       p1=sysAttr(p1);
