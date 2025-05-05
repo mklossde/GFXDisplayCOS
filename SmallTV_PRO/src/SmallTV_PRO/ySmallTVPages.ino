@@ -140,12 +140,12 @@ class DisValue {
       valRemote=concat(haStatePrefix,haType,"/",haName,"/state",NULL); // e.g. "homeassistant2/switch/tasmota/state";
       sprintf(buffer,"DisValue type:%d key:%s haType:%s haName:%s valRemote:%s",to(type),to(valKey),to(haType),to(haName),to(valRemote)); logPrintln(LOG_DEBUG,buffer);      
 
-//      type=paramNext(&config,",");
-      valType=toInt(paramNext(&config,","));
+      type=paramNext(&config,",");
+//      valType=toInt(paramNext(&config,","));
 
-      minF=toDouble(paramNext(&config,","));
-      medF=toDouble(paramNext(&config,","));
-      maxF=toDouble(paramNext(&config,","));
+//      minF=toDouble(paramNext(&config,","));
+//      medF=toDouble(paramNext(&config,","));
+//      maxF=toDouble(paramNext(&config,","));
     }
 
   public:
@@ -171,8 +171,8 @@ class DisValue {
     }
 
     void reinit(char *config) {
-      if(valKey) { free(valKey); }
-      if(valRemote) { free(valRemote); }
+      if(valKey!=NULL) { free(valKey); }
+      if(valRemote!=NULL) { free(valRemote); }
       valF=-1,minF=999999,maxF=0,medF=-1;
       init(config);
     } 
@@ -188,10 +188,9 @@ class DisValue {
       setVal(val);
       drawValue(valType,x,y,w,valKey,val,minF,medF,maxF,col1,col2,col3);
     }  
-    char* toString() {
-      sprintf(buffer,"DisValue type:%d key:%s valRemote:%s valType:%d",type,valKey,valRemote,valType); return buffer;
-    }
-    DisValue(char *config) { valKey=NULL; init(config); }
+    char* toString() { sprintf(buffer,"DisValue type:%s key:%s valRemote:%s valType:%d",to(type),to(valKey),to(valRemote),valType); return buffer; }
+    char* toConfig() { sprintf(buffer,"%s",to(valKey)); return buffer; }
+    DisValue(char *config) { type=NULL; valKey=NULL;valRemote=NULL; init(config); }
 };
 
 DisValue *stateValue=NULL;
@@ -220,7 +219,10 @@ char* pageStateSet(char *config) {
   if(is(config)) { 
     if(!stateValue) { stateValue=new DisValue(config);  }
     else { stateValue->reinit(config); }
+    if(mqttDiscovery) { sprintf(buffer,"%d",config); mqttPublishState("display", stateValue->toConfig());   } // ##page##
+    pageSet("state");
   }
+  if(!stateValue) { return UNKOWN; }
   return stateValue->toString();
 }
 

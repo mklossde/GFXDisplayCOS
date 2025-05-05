@@ -100,7 +100,7 @@ static char inIndex = 0; // read index
 
 static char* EMPTY="";
 static String EMPTYSTRING="";
-
+static char* UNKOWN="UNKOWN";
 
 //------------------------------------
 
@@ -2657,15 +2657,17 @@ void mqttPublishState(char *name,char *message) {
 // Receive messages
 
 void mqttReceive(char* topic, byte* payload, unsigned int length) {    
-//  char *msg=copy(NULL,(char*)payload,length);
-  if(length>=bufferMax) { logPrintln(LOG_ERROR,"mqtt msg to long"); return ; }
-  memcpy( buffer, payload, length); buffer[length]='\0'; char *msg=buffer;
+  char *msg=copy(NULL,(char*)payload,length);
+//  if(length>=bufferMax) { logPrintln(LOG_ERROR,"mqtt msg to long"); return ; }
+//  memcpy( buffer, payload, length); buffer[length]='\0'; char *msg=buffer;
 
   if (mqttCmdEnable && strcmp(topic,mqttTopicCmd) == 0) {   // call cmd     
     char *result=cmdLine(msg); 
-//    free(msg);
-    sprintf(buffer,"MQTT cmd '%s' %d", topic, length); logPrintln(LOG_DEBUG,buffer);
+//    free(msg);    
     mqttPublishState("cmd",result);
+    sprintf(buffer,"MQTT cmd '%s' %d", topic, length); logPrintln(LOG_DEBUG,buffer);
+
+  }else if(endsWith(topic,"restart")) { espRestart("MQTT restart"); 
 
   }else if(mqttOnMsg(topic,msg)) {
 //     free(msg);
@@ -2701,13 +2703,16 @@ void mqttReceive(char* topic, byte* payload, unsigned int length) {
 #if mqttDiscovery
 
 /* auto discover this as a light in HomeAssistant */
-void mqttDiscover(char *type,char *name,boolean receiveOn) { 
-    char *espStat=concat(mqttTopicStat,name,NULL);
-    logPrintln(LOG_DEBUG,espStat);  
-    char *topic=concat("homeassistant/",type,"/CmdOS/",eeBoot.espName,"/config",NULL);
-
+void mqttDiscover(char *type,char *name,boolean stateOn,boolean receiveOn) {     
+    
     uint32_t chipid=espChipId();
-    sprintf(buffer,"{\"name\":\"%s_%s\",\"uniq_id\":\"CmdOs%08X_%s\",\"avty_t\":\"%s\",\"stat_t\":\"%s\"",eeBoot.espName,name,chipid,name,mqttTopicOnline,espStat);
+//    char *topic=concat("homeassistant/",type,"/CmdOS/",eeBoot.espName,"/config",NULL);
+//    sprintf(paramBuffer,"CmdOs%08X_%s",chipid,name);
+    
+    sprintf(buffer,"{\"name\":\"%s\",\"uniq_id\":\"CmdOs%08X_%s\",\"avty_t\":\"%s\"",name,chipid,name,mqttTopicOnline);
+    if(stateOn) {
+       sprintf(buffer+strlen(buffer),",\"stat_t\":\"%s%s\"",mqttTopicStat,name);
+    }
     if(receiveOn) { 
       char *espCmd=concat(mqttTopicReceive,name,NULL); 
       sprintf(buffer+strlen(buffer),",\"cmd_t\":\"%s\"",espCmd);
@@ -2715,8 +2720,10 @@ void mqttDiscover(char *type,char *name,boolean receiveOn) {
     }
     sprintf(buffer+strlen(buffer),",\"dev\":{\"name\":\"%s\",\"ids\":\"CmdOs%08X\",\"configuration_url\":\"http://%s\",\"mf\":\"%s\",\"mdl\":\"%s\",\"sw\":\"%s\"}",eeBoot.espName,chipid,appIP.c_str(),APP_NAME_PREFIX,prgTitle,prgVersion);
     sprintf(buffer+strlen(buffer),"}");
+    
+    char *topic=concat("homeassistant/",type,"/",eeBoot.espName,"/",name,"/config",NULL);
     mqttPublish(topic,buffer);
-    free(topic); free(espStat);
+    free(topic); 
 
 //    mqttPublish(mqttTopicStat, "");        // state        
 }
@@ -2781,9 +2788,9 @@ void mqttConnect() {
       char *cmdTopic=concat(mqttTopicReceive,"+",NULL); mqttSubscribe(cmdTopic); free(cmdTopic); // subscibe all cmds
 
       #if mqttDiscovery
-        mqttDiscover("notify","state",false); // send mqtt homaAssistant state online Discover
-        mqttDiscover("text","cmd",mqttCmdEnable); // send mqtt homaAssistant Discover
-        mqttPublishState("state", "on");                   // discovery state
+        mqttDiscover("button","restart",false,true); // send mqtt homaAssistant state online Discover
+        if(mqttCmdEnable) { mqttDiscover("text","cmd",true,true); } // send mqtt homaAssistant Discover
+//        mqttPublishState("state", "on");                   // discovery state
       #endif
 
       mqttOnConnect(); // app spezific mqtt-commands after mqtt connect

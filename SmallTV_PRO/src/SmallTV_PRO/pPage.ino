@@ -69,10 +69,18 @@ byte pageSet(int page) {
 /* set page by index or name */
 byte pageSet(char *page) { 
   if(!is(page)) { return pageIndex; }
-  if(isInt(page)) { return pageSet(toInt(page)); }
+  if(isInt(page)) { 
+    byte p=pageSet(toInt(page));
+    if(mqttDiscovery) { sprintf(buffer,"%d",p); mqttPublishState("page", buffer);   } // ##page##
+    return p;
+  }
   for(int i=0;i<pages.size();i++) {      
     PageFunc *pageFunc=(PageFunc*)pages.get(i);  
-    if(pageFunc!=NULL && equals(pageFunc->getPageName(),page)) { return pageSet(i); }
+    if(pageFunc!=NULL && equals(pageFunc->getPageName(),page)) { 
+      byte p=pageSet(i); 
+      if(mqttDiscovery) { sprintf(buffer,"%d",p); mqttPublishState("page", page);   } // ##page##
+      return p;
+    }
   }
   sprintf(buffer,"unkown page %s",page); logPrintln(LOG_ERROR,buffer);
   return pageIndex;
@@ -131,11 +139,12 @@ void pageLoop() {
   if(pageIndex!=250 && isTimer(pageRefreshTime, pageRefresh)) {
 
     if(pageFunc!=NULL) { 
-      sprintf(buffer,"page setup %d",pageIndex);logPrintln(LOG_DEBUG,buffer);    
+//      sprintf(buffer,"page setup %d",pageIndex);logPrintln(LOG_DEBUG,buffer);    
       if(pageRefresh==0) { pageFunc->doSetup(); }
       else { pageFunc->doLoop();  }
     }else {
       sprintf(buffer,"no page found %d",pageIndex);logPrintln(LOG_ERROR,buffer);   
+      pageIndex=250; // disable on unkown page
     }  
   }
 }

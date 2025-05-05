@@ -81,8 +81,19 @@ char* appCmd(char *cmd, char **param) {
 }
 
 /** call on mqtt startup */
-void mqttOnConnect() {}
-boolean mqttOnMsg(char *topic,char *msg) { return false; }
+void mqttOnConnect() {
+Serial.println("mqttOnConnect") ;
+  #if mqttDiscovery
+    mqttDiscover("text","page",true,true); // set page ##page##
+    mqttDiscover("text","display",true,true); // set page
+  #endif
+}
+boolean mqttOnMsg(char *topic,char *msg) { 
+//Serial.print("mqttOnMsg topic:"); Serial.println(topic) ;  
+  if(endsWith(topic,"page")) { pageSet(msg); return true; }
+  else if(endsWith(topic,"display")) { pageStateSet(msg); return true; }
+  return false; 
+}
 
 //--------------------------------------------------------------
 
