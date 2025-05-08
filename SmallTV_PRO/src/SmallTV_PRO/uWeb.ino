@@ -5,11 +5,12 @@
 
 #if webEnable
 
+/*
 void matrixWebSetupSet(AsyncWebServerRequest *request) {
   String v;
   v=webParam(request,"pixelX"); if(is(v,1,5)) {  eeDisplay.pX=v.toInt(); }
   v=webParam(request,"pixelY"); if(is(v,1,5)) {  eeDisplay.pY=v.toInt(); }
-  v=webParam(request,"chain"); if(is(v,1,2)) {  eeDisplay.panelChain=v.toInt(); }
+//  v=webParam(request,"chain"); if(is(v,1,2)) {  eeDisplay.panelChain=v.toInt(); }
   v=webParam(request,"pins"); if(is(v,1,64)) {  v.toCharArray(eeDisplay.pins, sizeof(eeDisplay.pins)); }
   v=webParam(request,"brightness"); if(is(v,1,4)) {  eeDisplay.brightness=v.toInt(); }
   v=webParam(request,"rotation"); if(is(v,1,2)) {  eeDisplay.rotation=v.toInt(); }
@@ -24,7 +25,7 @@ void matrixWebSetup(AsyncWebServerRequest *request) {
   html = pageForm(html, "MatrixHub75 config");
   html = pageInput(html, "pixelX", to(eeDisplay.pX));
   html = pageInput(html, "pixelY", to(eeDisplay.pY));
-  html = pageInput(html, "chain", to(eeDisplay.panelChain));
+//  html = pageInput(html, "chain", to(eeDisplay.panelChain));
   html = pageInput(html, "pins", eeDisplay.pins);
   html = pageInput(html, "brightness", to(eeDisplay.brightness));
   html = pageInput(html, "rotation", to(eeDisplay.rotation));
@@ -33,6 +34,7 @@ void matrixWebSetup(AsyncWebServerRequest *request) {
   html = pageEnd(html,message);
   request->send(200, "text/html", html);
 }
+*/
 
 void matrixWeb(AsyncWebServerRequest *request) {
   String message;

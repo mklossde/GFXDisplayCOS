@@ -7,14 +7,7 @@ const char *GFXDisplaCOSVersion = "V0.4.0";
 #include <Adafruit_GFX.h>
 #include <Adafruit_ST7789.h>
 
-#define TFT_CLK 18
-#define TFT_MOSI 23
-#define TFT_DC 2
-#define TFT_RST 4
-#define TFT_CS -1
-#define TFT_BACKLIGHT 25
-
-Adafruit_ST7789 tft = Adafruit_ST7789(TFT_CS, TFT_DC, TFT_RST);
+Adafruit_ST7789 *tft = NULL; // = Adafruit_ST7789(TFT_CS, TFT_DC, TFT_RST);
 
 Adafruit_GFX *display;
 
@@ -38,27 +31,25 @@ String URL_FILE="/upload_url";
 
 //---------------------------------------------------------------------------
 
+byte eeDisplay_VERSION=0;
+
 // display store structur
 typedef struct {
+  byte VERSION=eeDisplay_VERSION;
   int pX=pixelX;
   int pY=pixelY;  
-  char type[10]="ST7789";
+  char libType[10]="ST7789";
   char pins[64]="18,23,2,4,-1,25";
   int mode=SPI_MODE3;
   byte brightness=90;
-  byte panelChain=1;
+//  byte panelChain=1;
   byte rotation=2;
-  boolean displayBuffer=false;
-  boolean dmaBuffer=false;
+  byte displayBuffer=0; // 0=no Buffer, 1=local buffer, 2=dma buffer
+  boolean backlightOn=false; // backligh is on by (true=high,low=false)
 } eeDisplay_t;
 eeDisplay_t eeDisplay;    // matrix store object 
 
-char* displayInfo() {
-  sprintf(buffer, "Matrix enabled:%d ok:%d pixelX:%d pixelY:%d rotation:%d brightness:%d panelChain:%d pins:%s disBuffer:%d dmaBuffer:%d",
-    displayEnable,_displaySetup,eeDisplay.pX,eeDisplay.pY,eeDisplay.rotation,eeDisplay.brightness,eeDisplay.panelChain,eeDisplay.pins,
-    eeDisplay.displayBuffer,eeDisplay.dmaBuffer);
-    return buffer;
-}
+//-----------------------------------------------------------
 
 void displaySave() {
   if(eeAppPos<=0) { logPrintln(LOG_ERROR,"displaySave wrong eeAppPos."); return ; }
@@ -66,27 +57,100 @@ void displaySave() {
 
   EEPROM.put(eeAppPos, eeDisplay ); 
   EEPROM.commit();  // Only needed for ESP8266 to get data written
-  sprintf(buffer, "displaySave eeAppPos:%d pixelX:%d pixelY:%d rotation:%d pins:%s",
-    eeAppPos,eeDisplay.pX,eeDisplay.pY,eeDisplay.rotation,eeDisplay.pins);logPrintln(LOG_INFO,buffer);
+  logPrintln(LOG_INFO,"display save");
 }
 
-void displayLoad() {
-  if(eeAppPos<=0) { logPrintln(LOG_ERROR,"displayLoad wrong eeAppPos.");return ; }
-  else if(strcmp(eeType,bootType)!=0) { logPrintln(LOG_ERROR,"displayLoad type wrong"); return ; }   // validate
+boolean displayLoad() {
+  if(eeAppPos<=0) { logPrintln(LOG_ERROR,"displayLoad wrong eeAppPos.");return false; }
+  else if(strcmp(eeType,bootType)!=0) { logPrintln(LOG_ERROR,"displayLoad type wrong"); return false; }   // validate
 
   EEPROM.begin(EEBOOTSIZE);
   EEPROM.get(eeAppPos, eeDisplay); // eeBoot read
   EEPROM.end(); 
-  sprintf(buffer, "displayLoad eeAppPos:%d pixelX:%d pixelY:%d rotation:%d pins:%s",
-    eeAppPos,eeDisplay.pX,eeDisplay.pY,eeDisplay.rotation,eeDisplay.pins);logPrintln(LOG_INFO,buffer);
+
+  if(eeDisplay.VERSION!=eeDisplay_VERSION) {
+    sprintf(buffer,"eeDisplay wrong %d need %d",eeDisplay.VERSION,eeDisplay_VERSION);logPrintln(LOG_ERROR,buffer);
+    eeDisplay=eeDisplay_t();
+    return false;
+  }
+  return true;
 }
 
-boolean displayInit() {
-//TODO displayLoad    displayLoad(); // load eeDisplay
+/* init display */
+void displayInit() {
+    _displaySetup=false;
+    
     pixelX=eeDisplay.pX;
     pixelY=eeDisplay.pY;
+    
+//TODO use libType
 
-    return true;
+    // decode pins and init display
+    char* temp = strdup(eeDisplay.pins);char* token = strtok(temp, ",");
+    int8_t TFT_CLK=(int8_t)atoi(token); token = strtok(NULL, ",");
+    int8_t TFT_MOSI=(int8_t)atoi(token); token = strtok(NULL, ",");
+    int8_t TFT_DC=(int8_t)atoi(token); token = strtok(NULL, ",");
+    int8_t TFT_RST=(int8_t)atoi(token); token = strtok(NULL, ",");
+    int8_t TFT_CS=(int8_t)atoi(token); token = strtok(NULL, ",");
+    int8_t TFT_BACKLIGHT=(int8_t)atoi(token); token = strtok(NULL, ",");    
+    free(temp);  // Free the duplicated string
+    tft = new Adafruit_ST7789(TFT_CS, TFT_DC, TFT_RST);
+
+    // enable backlight
+    if(TFT_BACKLIGHT>0) { pinMode(TFT_BACKLIGHT, OUTPUT); digitalWrite(TFT_BACKLIGHT, eeDisplay.backlightOn); }
+
+//TODO use brightness
+
+    tft->init(eeDisplay.pX,eeDisplay.pY, eeDisplay.mode);
+    tft->setRotation(eeDisplay.rotation);      // Rotation, 0-4
+
+    // display buffer
+    if(eeDisplay.displayBuffer) { 
+      display=new GFXcanvas16(eeDisplay.pX, eeDisplay.pY);  
+      if(display==NULL) {   // no ram
+        logPrintln(LOG_ERROR,"displayBuffer mem MISSING. disable displayBuffer");
+        display=tft; eeDisplay.displayBuffer=false; 
+      } else {
+        logPrintln(LOG_INFO,"displayBuffer enabled");
+      }
+    }else { display=tft; }
+
+    // setup base colors
+    col_red=toColor444(15,0,0);
+    col_white=toColor444(15,15,15);
+    col_black=toColor444(0,0,0);  
+    col_green=toColor444(0,15,0);  
+    col_blue=toColor444(0,0,15); 
+    
+    _displaySetup=true;
+}
+
+//---------------------------------------------------------------------------
+
+char* displayInfo() {
+  sprintf(buffer, "display OK:%d config: %d %d %s %s %d %d %d %d %d",
+    _displaySetup,
+    eeDisplay.pX,eeDisplay.pY,to(eeDisplay.libType),to(eeDisplay.pins),eeDisplay.mode,eeDisplay.brightness,eeDisplay.rotation,
+    eeDisplay.displayBuffer,eeDisplay.backlightOn);
+    return buffer;
+}
+
+/** set param to display config */
+char* displaySet(char **param) {  
+  int pX=toInt(cmdParam(param));
+  if(pX>0 && isAccess(ACCESS_ADMIN)) { 
+    eeDisplay.pX=pX;
+    eeDisplay.pX=toInt(cmdParam(param));
+    strcpy(eeDisplay.libType,cmdParam(param));
+    strcpy(eeDisplay.pins,cmdParam(param));
+    eeDisplay.mode=toInt(cmdParam(param));
+    eeDisplay.brightness=toInt(cmdParam(param));
+    eeDisplay.rotation=toInt(cmdParam(param));
+    eeDisplay.displayBuffer=toInt(cmdParam(param));
+    eeDisplay.backlightOn=toBoolean(cmdParam(param));
+    displayInit();
+  }
+  return displayInfo();
 }
 
 //---------------------------------------------------------------------------
@@ -95,16 +159,16 @@ boolean displayInit() {
 void displayDraw() {
   if(!_displaySetup) { return ; }
 //  if(eeDisplay.dmaBuffer) { tft.flipDMABuffer(); }// Show the back buffer, set currently output buffer to the back (i.e. no longer being sent to LED panels)
-  else if(eeDisplay.displayBuffer) {
+  else if(eeDisplay.displayBuffer==1) {
     GFXcanvas16 *canvas=(GFXcanvas16*)display;  
     uint16_t *buffer=canvas->getBuffer();
     if(buffer==NULL) { logPrintln(LOG_ERROR,"missing buffer"); return ; }
-    tft.drawRGBBitmap(0,0,buffer,pixelX,pixelY);
+    tft->drawRGBBitmap(0,0,buffer,pixelX,pixelY);
   }
 }
 
 /* clear display */
-void displayClear() { if(!_displaySetup) { return ; } tft.fillScreen(ST77XX_BLACK); }
+void displayClear() { if(!_displaySetup) { return ; } tft->fillScreen(ST77XX_BLACK); }
 void bufferClear() { 
   if(_displaySetup && eeDisplay.displayBuffer && display!=NULL) { 
     display->fillScreen(ST77XX_BLACK); 
@@ -113,7 +177,7 @@ void bufferClear() {
 
 /* set Brightness 0-255 */
 void displayBrightness(int b) {  } 
-char* displayRotation(int r) {  if(r>=0) { tft.setRotation(r); } sprintf(buffer,"%d",tft.getRotation()); return buffer; } 
+char* displayRotation(int r) {  if(r>=0) { tft->setRotation(r); } sprintf(buffer,"%d",tft->getRotation()); return buffer; } 
 
 uint16_t toColor444(uint8_t r, uint8_t g, uint8_t b) {
 //    return ((r & 0x0F) << 8) | ((g & 0x0F) << 4) | (b & 0x0F);
@@ -129,35 +193,12 @@ uint16_t toColor565(uint8_t r, uint8_t g, uint8_t b) {
 }
 
 
-
 //---------------------------------------------------------------------------
 
 void displaySetup() {
-  displayInit();
-  pinMode(TFT_BACKLIGHT, OUTPUT);
-  digitalWrite(TFT_BACKLIGHT, LOW);
-
-  tft.init(eeDisplay.pX,eeDisplay.pY, eeDisplay.mode);
-  tft.setRotation(eeDisplay.rotation);      // Rotation, 0-4
-  sprintf(buffer,"display px:%d py:%d mode:%d rotation:%d",eeDisplay.pX,eeDisplay.pY,eeDisplay.mode,eeDisplay.rotation);logPrintln(LOG_INFO,buffer);
-
-  if(eeDisplay.displayBuffer) { 
-    display=new GFXcanvas16(eeDisplay.pX, eeDisplay.pY);  
-    if(display==NULL) {   // no ram
-      logPrintln(LOG_ERROR,"displayBuffer mem MISSING. disable displayBuffer");
-      display=&tft; eeDisplay.displayBuffer=false; 
-    } else {
-      logPrintln(LOG_INFO,"displayBuffer enabled");
-    }
-  }else { display=&tft; }
-
-  col_red=toColor444(15,0,0);
-  col_white=toColor444(15,15,15);
-  col_black=toColor444(0,0,0);  
-  col_green=toColor444(0,15,0);  
-  col_blue=toColor444(0,0,15);    
-
-  _displaySetup=true;
+  if(!displayLoad()) { _displaySetup=false; return ; }
+  displayInit();  
+  logPrintln(LOG_INFO,displayInfo());   
 }
 
 void displayLoop() {

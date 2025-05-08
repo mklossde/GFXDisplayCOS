@@ -144,6 +144,7 @@ class DisValue {
 
 //      type=paramNext(&config,",");
       valType=toInt(paramNext(&config,","));
+      valImage=paramNext(&config,",");
 
       minF=toDouble(paramNext(&config,","));
       medF=toDouble(paramNext(&config,","));
@@ -157,7 +158,7 @@ class DisValue {
     char *valRemote; //="homeassistant2/switch/tasmota/state";    
     int valType=0;
     char *valImage;
-    
+
     double valF=-1;
     double minF=999999;
     double maxF=0;
@@ -182,11 +183,14 @@ class DisValue {
     void drawUnkown() {
       if(is(valKey)) { drawText(x+w/2,y+w/2,fontSize,valKey,col_red,0); }
       drawRect(x,y,w,w,col_red); drawLine(x,y,x+w,y+w,col_red);drawLine(x,y+w,x+w,y,col_red); 
-    }
-    void draw(char *val) {
-      if(is(type)) { val=type; } 
+    }    
+    void drawSetup() {
       if(x<0) { x=10; y=10; }
       if(w<0) { w=pixelX-x*2; if(pixelY<pixelX) { w=pixelY-y*2; } }
+      if(is(valImage)) { drawFile(valImage,valImage,0,0,true); }
+    }
+    void drawLoop(char *val) {
+      if(is(type)) { val=type; } 
       if(!is(val)) { drawUnkown(); return ; } // draw unkown
       setVal(val);
       drawValue(valType,x,y,w,valKey,val,minF,medF,maxF,col1,col2,col3);
@@ -209,8 +213,9 @@ void pageState() {
 void pageStateValue() {
 //TODO get via pram ?  
   char *val=attrGet(stateValue->valKey); 
-Serial.println("val:"); Serial.println(to(val)); 
-  stateValue->draw(val); 
+//Serial.println("val:"); Serial.println(to(val)); 
+  stateValue->drawSetup();
+  stateValue->drawLoop(val); 
 }
 
 void pageStateLoop() {

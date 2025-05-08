@@ -1,31 +1,5 @@
       
 
-
-char* cmdSetMatrix(char* p0,char* p1,char* p2,char* p3,char* p4,char* p5) {  
-  if(is(p0)) { 
-    if(!isAccess(ACCESS_ADMIN))  { return "ACCESS DENIED setMatrix"; }
-    if(is(p0,1,3)) { eeDisplay.pX=toInt(p0); }
-    if(is(p1,1,3)) { eeDisplay.pY=toInt(p1); }
-    if(is(p2,1,2)) { eeDisplay.panelChain=toInt(p2); }  
-    if(is(p3,1,3)) { eeDisplay.brightness=toInt(p3);}
-    if(is(p4,1,2)) { eeDisplay.rotation=toInt(p4);}
-    if(is(p5,1,64)) { strcpy(eeDisplay.pins,p5); }
-    displaySave();
-  }
-  return displayInfo();
-}
-
-char* cmdSetMatrix2(boolean dmaBuffer, boolean displayBuffer,int latBlanking,boolean clkphase,char *driver) {
-  eeDisplay.dmaBuffer=dmaBuffer;
-  eeDisplay.displayBuffer=displayBuffer;
-//  eeDisplay.latBlanking=latBlanking;
-//  eeDisplay.clkphase=clkphase;
-//  if(is(driver)) { eeDisplay.driver=copy(driver); }
-  displaySave();
-  return displayInfo();
-}
-
-
 //------------------------------------------------------------
 // cmd
 
@@ -137,10 +111,9 @@ char* matrixCmd(char *cmd, char **param) {
     else if(equals(cmd, "effect")) { effectStart(toInt(cmdParam(param)),toInt(cmdParam(param)),toInt(cmdParam(param)),toInt(cmdParam(param)),toInt(cmdParam(param))); return EMPTY;  } // start effect 
 
     // matrix sizeX sizeY chain brightness rotation pins - config hub75 dislpay/connection
-	  // e.g. matrix 64 64 1 90 0 0,15,4,16,27,17,5,18,19,21,12,33,25,22
-    else if(equals(cmd, "matrix")) { return cmdSetMatrix(cmdParam(param),cmdParam(param),cmdParam(param),cmdParam(param),cmdParam(param),cmdParam(param));  }
-    // buffer dmaBuffer displayBuffer - (0=off/1=on) enable dmsBuffer or displayBuffer 
-    else if(equals(cmd, "matrix2")) { return cmdSetMatrix2(toBoolean(cmdParam(param)),toBoolean(cmdParam(param)),toInt(cmdParam(param)),toBoolean(cmdParam(param)),cmdParam(param));  }
+	  //
+    else if(equals(cmd, "displaySet")) { return displaySet(param);  }
+    else if(equals(cmd, "displaySave")) { displaySave();  return "saved"; }
 
 //else if(equals(cmd, "toDouble")) { double d=toDouble(cmdParam(param)); sprintf(buffer,"%9.2f x:%0.2f y:%.2f",d,d,d); return buffer; } 
     else if(equals(cmd, "disValue")) { return pageStateSet(cmdParam(param)); }

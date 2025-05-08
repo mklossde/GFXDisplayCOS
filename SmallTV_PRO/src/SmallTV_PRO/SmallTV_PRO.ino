@@ -101,7 +101,7 @@ boolean mqttOnMsg(char *topic,char *msg) {
 void webApp() {
   #if webEnable
     webServer.on("/app", HTTP_GET, [](AsyncWebServerRequest *request) { matrixWeb(request); });
-    webServer.on("/appSetup", HTTP_GET, [](AsyncWebServerRequest *request) { matrixWebSetup(request); });
+//    webServer.on("/appSetup", HTTP_GET, [](AsyncWebServerRequest *request) { matrixWebSetup(request); });
   #endif
 }
 

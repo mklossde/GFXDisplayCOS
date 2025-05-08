@@ -135,7 +135,7 @@ void pageSetup() {
 }
 
 void pageLoop() {
-  if(!displayEnable && !_displaySetup) { return ; }
+  if(!displayEnable || !_displaySetup) { return ; }
   if(pageIndex!=250 && isTimer(pageRefreshTime, pageRefresh)) {
 
     if(pageFunc!=NULL) { 
