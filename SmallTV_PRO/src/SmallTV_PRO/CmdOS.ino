@@ -1719,6 +1719,7 @@ void eeSave() {
   EEPROM.put(pos, eeBoot); pos+=sizeof(eeBoot); // save bootloader 
   EEPROM.commit();  // Only needed for ESP8266 to get data written
   eeAppPos=pos;
+  sprintf(buffer,"eeSave eeAppPos %d",eeAppPos);logPrintln(LOG_DEBUG,buffer);
 }
 
 void eeRead() {   
@@ -1731,6 +1732,7 @@ void eeRead() {
   EEPROM.get(pos, eeBoot); pos+=sizeof(eeBoot);// eeBoot read
   EEPROM.end(); 
   eeAppPos=pos;
+  sprintf(buffer,"eeRead eeAppPos %d",eeAppPos);logPrintln(LOG_DEBUG,buffer);
 }
 
 void eeSetMode(byte mode) {
@@ -2850,6 +2852,7 @@ void mqttLoop() {
   boolean mqttPublish(char* topic,char *message) {} 
   boolean mqttAttr(char *name,char *topic) {}  
   boolean mqttDel(char*name) {}
+  void mqttPublishState(char *name,char *message) {}
 
   int paramsClear(byte type) { return 0; }
 

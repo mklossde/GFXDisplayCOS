@@ -110,8 +110,8 @@ char* matrixCmd(char *cmd, char **param) {
     // effect type step speed a b - start effect type with n-steps with speed in ms between steps
     else if(equals(cmd, "effect")) { effectStart(toInt(cmdParam(param)),toInt(cmdParam(param)),toInt(cmdParam(param)),toInt(cmdParam(param)),toInt(cmdParam(param))); return EMPTY;  } // start effect 
 
-    // matrix sizeX sizeY chain brightness rotation pins - config hub75 dislpay/connection
-	  //
+
+	  // displaySet
     else if(equals(cmd, "displaySet")) { return displaySet(param);  }
     else if(equals(cmd, "displaySave")) { displaySave();  return "saved"; }
 

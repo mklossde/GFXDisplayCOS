@@ -79,13 +79,13 @@ boolean displayLoad() {
 /* init display */
 void displayInit() {
     _displaySetup=false;
-    
+
     pixelX=eeDisplay.pX;
     pixelY=eeDisplay.pY;
     
 //TODO use libType
 
-    // decode pins and init display
+    // decode pins and init display (CLK,MOSI,DC,RST,CS,BACKLIGHT)
     char* temp = strdup(eeDisplay.pins);char* token = strtok(temp, ",");
     int8_t TFT_CLK=(int8_t)atoi(token); token = strtok(NULL, ",");
     int8_t TFT_MOSI=(int8_t)atoi(token); token = strtok(NULL, ",");
@@ -128,19 +128,24 @@ void displayInit() {
 //---------------------------------------------------------------------------
 
 char* displayInfo() {
-  sprintf(buffer, "display OK:%d config: %d %d %s %s %d %d %d %d %d",
+//  sprintf(buffer, "display OK:%d config: %d %d %s %s %d %d %d %d %d",
+  sprintf(buffer, "display OK:%d px:%d py:%d libType:%s pins:%s mode:%d eeDisplay:%d rotation:%d displayBuffer:%d backlightOn:%d",
     _displaySetup,
     eeDisplay.pX,eeDisplay.pY,to(eeDisplay.libType),to(eeDisplay.pins),eeDisplay.mode,eeDisplay.brightness,eeDisplay.rotation,
     eeDisplay.displayBuffer,eeDisplay.backlightOn);
     return buffer;
 }
 
-/** set param to display config */
+/* set param to display config 
+    displaySet pX pY libType pins mode brightness rotation displayBuffer backlightOn
+      pins:   TFT_CLK,TFT_MOSI,TFT_DC,TFT_RST,TFT_CS,TFT_BACKLIGHT
+ *  e.g. displaySet 480 480 ST7701 48,47,-1,-1,39,38 0 100 0 0 0
+*/
 char* displaySet(char **param) {  
   int pX=toInt(cmdParam(param));
   if(pX>0 && isAccess(ACCESS_ADMIN)) { 
     eeDisplay.pX=pX;
-    eeDisplay.pX=toInt(cmdParam(param));
+    eeDisplay.pY=toInt(cmdParam(param));
     strcpy(eeDisplay.libType,cmdParam(param));
     strcpy(eeDisplay.pins,cmdParam(param));
     eeDisplay.mode=toInt(cmdParam(param));
@@ -197,8 +202,8 @@ uint16_t toColor565(uint8_t r, uint8_t g, uint8_t b) {
 
 void displaySetup() {
   if(!displayLoad()) { _displaySetup=false; return ; }
-  displayInit();  
-  logPrintln(LOG_INFO,displayInfo());   
+  logPrintln(LOG_INFO,displayInfo());  
+  displayInit();     
 }
 
 void displayLoop() {
